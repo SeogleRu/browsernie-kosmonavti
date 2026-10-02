@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Браузерные космонавты — Побег от предателя</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 30%, #0a0f1e, #03060b);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 100;
+            backdrop-filter: blur(4px);
+            transition: opacity 0.5s;
+        }
+        #menu h1 {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 20px cyan, 0 0 40px blue;
+            letter-spacing: 6px;
+            color: #e0f0ff;
+        }
+        .menu-panel {
+            background: rgba(10, 20, 40, 0.8);
+            border: 2px solid #3a6ea5;
+            border-radius: 30px;
+            padding: 2rem 3rem;
+            box-shadow: 0 0 50px rgba(0, 180, 255, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            width: 400px;
+        }
+        .menu-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+        .menu-row label {
+            font-size: 1.3rem;
+            color: #aad0ff;
+            width: 140px;
+        }
+        select, input {
+            background: #0f1a2b;
+            border: 2px solid #2f5a8c;
+            color: white;
+            padding: 0.7rem 1rem;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            width: 200px;
+            cursor: pointer;
+            outline: none;
+            transition: 0.2s;
+        }
+        select:hover, input:hover {
+            border-color: #5a9eff;
+        }
+        button {
+            background: #1e4b7a;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            padding: 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            letter-spacing: 4px;
+            transition: all 0.2s;
+            box-shadow: 0 0 20px #2f8cff;
+            margin-top: 1rem;
+            border: 2px solid #7abfff;
+        }
+        button:hover {
+            background: #2f6eb0;
+            box-shadow: 0 0 40px #4faaff;
+            transform: scale(1.02);
+        }
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            text-shadow: 2px 2px 4px black;
+            font-size: 1.5rem;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 25px;
+            border-radius: 30px;
+            border-left: 5px solid #00ccff;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #roleDisplay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #ffcc00;
+            font-size: 1.8rem;
+            font-weight: bold;
+            text-shadow: 0 0 15px orange;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 30px;
+            border-radius: 20px;
+            border: 2px solid #ffaa00;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #message {
+            position: absolute;
+            bottom: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 2rem;
+            background: rgba(0,0,0,0.8);
+            padding: 20px 50px;
+            border-radius: 30px;
+            text-align: center;
+            z-index: 20;
+            border: 2px solid red;
+            display: none;
+            white-space: nowrap;
+            text-shadow: 0 0 10px red;
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <h1>БРАУЗЕРНЫЕ КОСМОНАВТЫ</h1>
+        <div class="menu-panel">
+            <div class="menu-row">
+                <label>Карта:</label>
+                <select id="mapSelect">
+                    <option value="small">Малая (тесная)</option>
+                    <option value="medium" selected>Средняя (стандарт)</option>
+                    <option value="large">Большая (лабиринт)</option>
+                </select>
+            </div>
+            <div class="menu-row">
+                <label>Режим:</label>
+                <select id="roleSelect">
+                    <option value="crew" selected>Космонавт</option>
+                    <option value="impostor">Предатель</option>
+                </select>
+            </div>
+            <div class="menu-row">
+                <label>Время (мин):</label>
+                <input type="number" id="timeInput" value="5" min="1" max="30" step="1">
+            </div>
+            <button id="playBtn">ИГРАТЬ!</button>
+        </div>
+    </div>
+
+    <div id="hud">Время: <span id="timer">5:00</span> | Союзников: <span id="allyCount">4</span></div>
+    <div id="roleDisplay"></div>
+    <div id="message"></div>
+
+    <!-- Three.js из CDN -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // ---------- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ----------
+        let scene, camera, renderer;
+        let player = { obj: null, vel: new THREE.Vector3(), speed: 5.0, isImpostor: false };
+        let allies = [];        // союзники (космонавты)
+        let impostorObj = null; // предатель (если игрок - космонавт)
+        let gameActive = false;
+        let timeLeft = 300;     // секунды
+        let gameTimerInterval = null;
+        let clock = new THREE.Clock();
+
+        // Ссылки на DOM
+        const menuEl = document.getElementById('menu');
+        const playBtn = document.getElementById('playBtn');
+        const mapSelect = document.getElementById('mapSelect');
+        const roleSelect = document.getElementById('roleSelect');
+        const timeInput = document.getElementById('timeInput');
+        const timerSpan = document.getElementById('timer');
+        const allyCountSpan = document.getElementById('allyCount');
+        const roleDisplay = document.getElementById('roleDisplay');
+        const messageEl = document.getElementById('message');
+
+        // -------- ИНИЦИАЛИЗАЦИЯ СЦЕНЫ --------
+        function initScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a20);
+            // Туман для атмосферы
+            scene.fog = new THREE.FogExp2(0x0a0a20, 0.015);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.7, 0); // высота глаз
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+        }
+
+        // -------- ОСВЕЩЕНИЕ --------
+        function addLights() {
+            const ambient = new THREE.AmbientLight(0x404060);
+            scene.add(ambient);
+
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1);
+            mainLight.position.set(10, 20, 5);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 1024;
+            mainLight.shadow.mapSize.height = 1024;
+            const d = 30;
+            mainLight.shadow.camera.left = -d;
+            mainLight.shadow.camera.right = d;
+            mainLight.shadow.camera.top = d;
+            mainLight.shadow.camera.bottom = -d;
+            mainLight.shadow.camera.far = 50;
+            scene.add(mainLight);
+
+            const fillLight = new THREE.PointLight(0x4466ff, 0.5);
+            fillLight.position.set(-5, 3, 5);
+            scene.add(fillLight);
+        }
+
+        // -------- ГЕНЕРАЦИЯ КАРТЫ --------
+        function createMap(type) {
+            // Удаляем старые объекты пола/стен, если есть
+            const oldGround = scene.getObjectByName('ground');
+            if (oldGround) scene.remove(oldGround);
+            const oldWalls = scene.getObjectByName('walls');
+            if (oldWalls) scene.remove(oldWalls);
+
+            let sizeX, sizeZ, wallHeight = 3, wallThickness = 1;
+            let wallPositions = [];
+
+            if (type === 'small') {
+                sizeX = 20; sizeZ = 20;
+            } else if (type === 'medium') {
+                sizeX = 30; sizeZ = 30;
+            } else {
+                sizeX = 45; sizeZ = 45;
+            }
+
+            // Пол
+            const groundGeo = new THREE.BoxGeometry(sizeX, 0.5, sizeZ);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x2a2a4a, roughness: 0.8, metalness: 0.2 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.name = 'ground';
+            ground.position.y = -0.25;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Стены по периметру
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a6a9a, roughness: 0.6, metalness: 0.3 });
+            
+            // Вспомогательная функция для создания стены
+            function addWall(x, z, w, d) {
+                const wallGeo = new THREE.BoxGeometry(w, wallHeight, d);
+                const wall = new THREE.Mesh(wallGeo, wallMat);
+                wall.position.set(x, wallHeight/2, z);
+                wall.castShadow = true;
+                wall.receiveShadow = true;
+                wall.name = 'walls';
+                scene.add(wall);
+            }
+
+            // Границы
+            const halfX = sizeX/2;
+            const halfZ = sizeZ/2;
+            addWall(0, -halfZ, sizeX, wallThickness);
+            addWall(0, halfZ, sizeX, wallThickness);
+            addWall(-halfX, 0, wallThickness, sizeZ);
+            addWall(halfX, 0, wallThickness, sizeZ);
+
+            // Внутренние стены (препятствия) в зависимости от карты
+            if (type === 'medium') {
+                // Несколько блоков
+                addWall(-5, -5, 4, 1);
+                addWall(5, 5, 1, 4);
+                addWall(0, 8, 3, 0.5);
+                addWall(-8, 0, 0.5, 5);
+            } else if (type === 'large') {
+                // Лабиринт
+                addWall(-10, -10, 8, 1);
+                addWall(10, 10, 8, 1);
+                addWall(-10, 10, 1, 8);
+                addWall(10, -10, 1, 8);
+                addWall(0, -5, 5, 1);
+                addWall(0, 5, 5, 1);
+                addWall(-5, 0, 1, 5);
+                addWall(5, 0, 1, 5);
+                addWall(15, 0, 1, 6);
+                addWall(-15, 0, 1, 6);
+            } else {
+                // small — минимум препятствий
+                addWall(3, 3, 2, 1);
+                addWall(-3, -3, 1, 2);
+            }
+        }
+
+        // -------- СОЗДАНИЕ МОДЕЛИ КОСМОНАВТА (стилизованный Among Us) --------
+        function createAstronaut(color = 0x44aaff, isImpostor = false) {
+            const group = new THREE.Group();
+
+            // Тело (капсула)
+            const bodyGeo = new THREE.CapsuleGeometry(0.7, 0.7, 4, 8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4, metalness: 0.1 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.castShadow = true;
+            body.receiveShadow = true;
+            body.position.y = 0.8;
+            group.add(body);
+
+            // Визор
+            const visorGeo = new THREE.SphereGeometry(0.4, 8, 8);
+            const visorMat = new THREE.MeshStandardMaterial({ color: 0x111122, emissive: 0x224466 });
+            const visor = new THREE.Mesh(visorGeo, visorMat);
+            visor.castShadow = true;
+            visor.position.set(0, 1.1, 0.55);
+            visor.scale.set(0.9, 0.6, 0.4);
+            group.add(visor);
+
+            // Рюкзак
+            const backpackGeo = new THREE.BoxGeometry(0.6, 0.8, 0.4);
+            const backpackMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.8 });
+            const backpack = new THREE.Mesh(backpackGeo, backpackMat);
+            backpack.castShadow = true;
+            backpack.position.set(0, 0.9, -0.55);
+            group.add(backpack);
+
+            // Ноги (два маленьких цилиндра)
+            const legGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.4);
+            const legMat = new THREE.MeshStandardMaterial({ color: color });
+            const legL = new THREE.Mesh(legGeo, legMat);
+            legL.castShadow = true;
+            legL.position.set(-0.3, 0.3, 0);
+            group.add(legL);
+            const legR = new THREE.Mesh(legGeo, legMat);
+            legR.castShadow = true;
+            legR.position.set(0.3, 0.3, 0);
+            group.add(legR);
+
+            // Если предатель — добавим зловещий оттенок и "рожки"
+            if (isImpostor) {
+                const spikeGeo = new THREE.ConeGeometry(0.2, 0.5);
+                const spikeMat = new THREE.MeshStandardMaterial({ color: 0xaa2222, emissive: 0x440000 });
+                const spikeL = new THREE.Mesh(spikeGeo, spikeMat);
+                spikeL.position.set(-0.35, 1.6, 0.1);
+                spikeL.rotation.x = 0.3;
+                group.add(spikeL);
+                const spikeR = new THREE.Mesh(spikeGeo, spikeMat);
+                spikeR.position.set(0.35, 1.6, 0.1);
+                spikeR.rotation.x = 0.3;
+                group.add(spikeR);
+                // Свечение глаз
+                visor.material.emissive.setHex(0x660000);
+            }
+
+            group.userData = { isImpostor, color };
+            return group;
+        }
+
+        // -------- РАЗМЕЩЕНИЕ ПЕРСОНАЖЕЙ НА КАРТЕ --------
+        function getRandomSpawnPoint(mapSize) {
+            // mapSize: примерный размер, берём из карты
+            const half = mapSize / 2 - 2;
+            return new THREE.Vector3(
+                (Math.random() - 0.5) * half * 1.5,
+                0,
+                (Math.random() - 0.5) * half * 1.5
+            );
+        }
+
+        // -------- ОЧИСТКА ПЕРСОНАЖЕЙ --------
+        function clearCharacters() {
+            allies.forEach(a => scene.remove(a));
+            allies = [];
+            if (impostorObj) {
+                scene.remove(impostorObj);
+                impostorObj = null;
+            }
+            if (player.obj) {
+                scene.remove(player.obj);
+                player.obj = null;
+            }
+        }
+
+        // -------- ЗАПУСК ИГРЫ --------
+        function startGame() {
+            // Сброс
+            clearCharacters();
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+            
+            const mapType = mapSelect.value;
+            const role = roleSelect.value;
+            const minutes = parseFloat(timeInput.value);
+            if (isNaN(minutes) || minutes < 1) minutes = 5;
+            
+            timeLeft = minutes * 60;
+            updateTimerDisplay();
+
+            // Определяем размер карты
+            let mapSize = 30;
+            if (mapType === 'small') mapSize = 20;
+            else if (mapType === 'large') mapSize = 45;
+
+            createMap(mapType);
+
+            // Создаём игрока
+            const playerColor = role === 'impostor' ? 0xaa2222 : 0x44aaff;
+            const playerIsImpostor = (role === 'impostor');
+            player.isImpostor = playerIsImpostor;
+            player.obj = createAstronaut(playerColor, playerIsImpostor);
+            player.obj.position.set(0, 0, 0); // центр
+            scene.add(player.obj);
+
+            // Создаём союзников (если игрок - предатель, то союзники - все остальные; если игрок - космонавт, то союзники - другие космонавты, и один предатель)
+            const allyCount = 4; // всего союзников (не считая игрока, если игрок - космонавт)
+            
+            if (playerIsImpostor) {
+                // Игрок - предатель. Создаём 4 космонавтов-союзников (цели)
+                for (let i = 0; i < allyCount; i++) {
+                    const ally = createAstronaut(0x44aaff, false);
+                    let pos;
+                    do {
+                        pos = getRandomSpawnPoint(mapSize);
+                    } while (pos.distanceTo(player.obj.position) < 5); // не слишком близко к игроку
+                    ally.position.copy(pos);
+                    ally.userData = { isImpostor: false, alive: true, speed: 2.5 + Math.random() * 1.5 };
+                    scene.add(ally);
+                    allies.push(ally);
+                }
+                // Предателя (игрока) не добавляем в allies
+            } else {
+                // Игрок - космонавт. Создаём 4 союзников-космонавтов (включая игрока? нет, игрок отдельно, значит 4 других)
+                for (let i = 0; i < allyCount; i++) {
+                    const ally = createAstronaut(0x44aaff, false);
+                    let pos;
+                    do {
+                        pos = getRandomSpawnPoint(mapSize);
+                    } while (pos.distanceTo(player.obj.position) < 5);
+                    ally.position.copy(pos);
+                    ally.userData = { isImpostor: false, alive: true, speed: 2.5 + Math.random() * 1.5 };
+                    scene.add(ally);
+                    allies.push(ally);
+                }
+                // Создаём предателя (мутировавшего космонавта)
+                impostorObj = createAstronaut(0xaa2222, true);
+                let impPos;
+                do {
+                    impPos = getRandomSpawnPoint(mapSize);
+                } while (impPos.distanceTo(player.obj.position) < 10); // подальше от игрока
+                impostorObj.position.copy(impPos);
+                impostorObj.userData = { isImpostor: true, speed: 4.0, target: null };
+                scene.add(impostorObj);
+            }
+
+            // Обновляем счётчик союзников
+            updateAllyCount();
+
+            // Настройка камеры и HUD
+            roleDisplay.textContent = playerIsImpostor ? 'ВЫ — ПРЕДАТЕЛЬ' : 'ВЫ — КОСМОНАВТ';
+            roleDisplay.style.color = playerIsImpostor ? '#ff5555' : '#aaffaa';
+            messageEl.style.display = 'none';
+
+            // Сброс камеры
+            camera.position.copy(player.obj.position).add(new THREE.Vector3(0, 1.7, 0));
+
+            // Запуск таймера
+            gameActive = true;
+            gameTimerInterval = setInterval(() => {
+                if (!gameActive) return;
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    // Время вышло: если игрок космонавт — победа, если предатель — поражение
+                    if (!player.isImpostor) {
+                        endGame(true, 'ВЫ ВЫЖИЛИ! ПОБЕДА КОСМОНАВТОВ!');
+                    } else {
+                        endGame(false, 'ВРЕМЯ ВЫШЛО... ПРЕДАТЕЛЬ ПРОИГРАЛ.');
+                    }
+                }
+            }, 1000);
+
+            // Скрываем меню
+            menuEl.classList.add('hidden');
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(timeLeft / 60);
+            const secs = Math.floor(timeLeft % 60);
+            timerSpan.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        function updateAllyCount() {
+            const aliveAllies = allies.filter(a => a.userData.alive !== false).length;
+            allyCountSpan.textContent = aliveAllies;
+            return aliveAllies;
+        }
+
+        // -------- ЗАВЕРШЕНИЕ ИГРЫ --------
+        function endGame(win, message) {
+            if (!gameActive) return;
+            gameActive = false;
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+            
+            messageEl.textContent = message;
+            messageEl.style.display = 'block';
+            messageEl.style.borderColor = win ? '#00ffaa' : '#ff3333';
+            messageEl.style.color = win ? '#aaffaa' : '#ffaaaa';
+
+            // Через 2.5 секунды вернуть в меню
+            setTimeout(() => {
+                menuEl.classList.remove('hidden');
+                messageEl.style.display = 'none';
+                // Очистка сцены от персонажей
+                clearCharacters();
+                // Удаляем карту? Оставим, но при следующем старте пересоздадим
+                gameActive = false;
+            }, 2500);
+        }
+
+        // -------- ОБНОВЛЕНИЕ ИГРОВОЙ ЛОГИКИ --------
+        function updateGame(delta) {
+            if (!gameActive || !player.obj) return;
+
+            // Управление игроком (от первого лица)
+            const speed = player.isImpostor ? 6.5 : 5.0; // предатель быстрее
+            const moveDir = new THREE.Vector3();
+            
+            // Получаем направление из камеры
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            forward.y = 0;
+            forward.normalize();
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+            right.y = 0;
+            right.normalize();
+
+            // Ввод (можно добавить проверку на фокус)
+            if (keys['KeyW'] || keys['ArrowUp']) moveDir.add(forward);
+            if (keys['KeyS'] || keys['ArrowDown']) moveDir.sub(forward);
+            if (keys['KeyA'] || keys['ArrowLeft']) moveDir.sub(right);
+            if (keys['KeyD'] || keys['ArrowRight']) moveDir.add(right);
+
+            if (moveDir.lengthSq() > 0) {
+                moveDir.normalize();
+                // Простое движение без физики столкновений (упрощённо)
+                const newPos = player.obj.position.clone().add(moveDir.multiplyScalar(speed * delta));
+                // Ограничение по границам карты (грубо)
+                const limit = 22; // чуть больше половины размера large
+                newPos.x = Math.max(-limit, Math.min(limit, newPos.x));
+                newPos.z = Math.max(-limit, Math.min(limit, newPos.z));
+                player.obj.position.copy(newPos);
+            }
+
+            // Обновляем позицию камеры (вид от первого лица)
+            camera.position.copy(player.obj.position).add(new THREE.Vector3(0, 1.7, 0));
+
+            // Поворот камеры через мышь (обрабатывается в mousemove)
+            // (реализовано ниже)
+
+            // -------- ИИ СОЮЗНИКОВ (если игрок - предатель) --------
+            if (player.isImpostor) {
+                // Союзники убегают от игрока
+                allies.forEach(ally => {
+                    if (!ally.userData.alive) return;
+                    
+                    const distToPlayer = ally.position.distanceTo(player.obj.position);
+                    const dirAway = new THREE.Vector3().subVectors(ally.position, player.obj.position).normalize();
+                    
+                    // Если игрок близко, союзник бежит быстрее
+                    let allySpeed = ally.userData.speed;
+                    if (distToPlayer < 8) {
+                        allySpeed *= 1.8;
+                        // Добавим немного паники — случайное смещение
+                        dirAway.x += (Math.random() - 0.5) * 0.5;
+                        dirAway.z += (Math.random() - 0.5) * 0.5;
+                        dirAway.normalize();
+                    }
+                    
+                    // Движение
+                    const newPos = ally.position.clone().add(dirAway.multiplyScalar(allySpeed * delta));
+                    // Ограничения
+                    const limit = 22;
+                    newPos.x = Math.max(-limit, Math.min(limit, newPos.x));
+                    newPos.z = Math.max(-limit, Math.min(limit, newPos.z));
+                    ally.position.copy(newPos);
+                    
+                    // Если игрок догнал союзника
+                    if (distToPlayer < 1.8) {
+                        // Съедаем союзника
+                        ally.userData.alive = false;
+                        scene.remove(ally);
+                        // Обновляем счётчик
+                        const left = updateAllyCount();
+                        if (left === 0) {
+                            endGame(true, 'ВЫ СЪЕЛИ ВСЕХ! ПОБЕДА ПРЕДАТЕЛЯ!');
+                        }
+                    }
+                });
+            } 
+            // -------- ИИ ПРЕДАТЕЛЯ (если игрок - космонавт) --------
+            else {
+                if (impostorObj) {
+                    // Предатель выбирает ближайшую цель среди союзников и игрока
+                    let target = null;
+                    let minDist = Infinity;
+                    
+                    // Рассматриваем союзников
+                    allies.forEach(ally => {
+                        if (!ally.userData.alive) return;
+                        const d = impostorObj.position.distanceTo(ally.position);
+                        if (d < minDist) {
+                            minDist = d;
+                            target = ally;
+                        }
+                    });
+                    
+                    // И игрока
+                    const dToPlayer = impostorObj.position.distanceTo(player.obj.position);
+                    if (dToPlayer < minDist) {
+                        minDist = dToPlayer;
+                        target = player.obj;
+                    }
+                    
+                    if (target) {
+                        const dir = new THREE.Vector3().subVectors(target.position, impostorObj.position).normalize();
+                        const speed = impostorObj.userData.speed; // 4.0
+                        const newPos = impostorObj.position.clone().add(dir.multiplyScalar(speed * delta));
+                        impostorObj.position.copy(newPos);
+                        
+                        // Проверка поимки игрока
+                        if (target === player.obj && dToPlayer < 1.8) {
+                            endGame(false, 'ВАС СЪЕЛ ПРЕДАТЕЛЬ! ИГРА ОКОНЧЕНА.');
+                            return;
+                        }
+                        
+                        // Проверка поимки союзника
+                        if (target !== player.obj) {
+                            const allyTarget = allies.find(a => a === target);
+                            if (allyTarget && allyTarget.userData.alive && impostorObj.position.distanceTo(allyTarget.position) < 1.8) {
+                                allyTarget.userData.alive = false;
+                                scene.remove(allyTarget);
+                                const left = updateAllyCount();
+                                if (left === 0) {
+                                    endGame(false, 'ПРЕДАТЕЛЬ СЪЕЛ ВСЕХ СОЮЗНИКОВ... ВЫ ПРОИГРАЛИ.');
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Обновляем счётчик на всякий случай
+            updateAllyCount();
+        }
+
+        // -------- УПРАВЛЕНИЕ МЫШЬЮ (ПОВОРОТ КАМЕРЫ) --------
+        let mouseX = 0, mouseY = 0;
+        let cameraYaw = 0, cameraPitch = 0;
+        const mouseSensitivity = 0.002;
+
+        document.addEventListener('mousemove', (e) => {
+            if (!gameActive) return;
+            // Только если указатель не в меню
+            if (menuEl.classList.contains('hidden')) {
+                const movementX = e.movementX || 0;
+                const movementY = e.movementY || 0;
+                cameraYaw -= movementX * mouseSensitivity;
+                cameraPitch -= movementY * mouseSensitivity;
+                cameraPitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraPitch));
+                
+                // Применяем к камере
+                camera.rotation.order = 'YXZ';
+                camera.rotation.y = cameraYaw;
+                camera.rotation.x = cameraPitch;
+            }
+        });
+
+        // -------- КЛАВИАТУРА --------
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            // Блокируем скролл для стрелок
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+                e.preventDefault();
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // -------- АНИМАЦИОННЫЙ ЦИКЛ --------
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = Math.min(clock.getDelta(), 0.1);
+            
+            if (gameActive) {
+                updateGame(delta);
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // -------- ЗАПУСК --------
+        function init() {
+            initScene();
+            addLights();
+            
+            // Начальная карта для меню (пустая сцена, но с картой?)
+            // Создадим простую карту для фона меню, но потом пересоздадим.
+            createMap('medium');
+            
+            // Обработчик кнопки "Играть"
+            playBtn.addEventListener('click', () => {
+                startGame();
+            });
+
+            // Обработка изменения размера окна
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            // Запуск цикла
+            animate();
+        }
+
+        init();
+    </script>
+</body>
+  </html>
