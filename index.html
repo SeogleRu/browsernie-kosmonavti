@@ -1,1092 +1,852 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <title>Браузерные космонавты — Побег от предателя</title>
-    <style>
-        * {
-            -webkit-tap-highlight-color: transparent;
-            -webkit-touch-callout: none;
-            user-select: none;
-            box-sizing: border-box;
-        }
-        html, body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            width: 100%;
-            height: 100%;
-            position: fixed;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #03060b;
-            touch-action: none;
-        }
-        #gameCanvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-        #menu {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 20% 30%, #0a0f1e, #03060b);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            z-index: 100;
-            padding: 15px;
-            overflow-y: auto;
-        }
-        #menu h1 {
-            font-size: clamp(2rem, 8vw, 4rem);
-            margin: 0 0 1rem 0;
-            text-shadow: 0 0 20px cyan, 0 0 40px blue;
-            letter-spacing: 4px;
-            color: #e0f0ff;
-            text-align: center;
-        }
-        .menu-panel {
-            background: rgba(10, 20, 40, 0.85);
-            border: 2px solid #3a6ea5;
-            border-radius: 24px;
-            padding: clamp(1rem, 4vw, 2rem) clamp(1.2rem, 5vw, 3rem);
-            box-shadow: 0 0 50px rgba(0, 180, 255, 0.3);
-            display: flex;
-            flex-direction: column;
-            gap: clamp(0.8rem, 3vw, 1.5rem);
-            width: min(95%, 420px);
-        }
-        .menu-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 0.8rem;
-            flex-wrap: wrap;
-        }
-        .menu-row label {
-            font-size: clamp(0.95rem, 3.5vw, 1.3rem);
-            color: #aad0ff;
-            flex: 1 1 100px;
-        }
-        select, input {
-            background: #0f1a2b;
-            border: 2px solid #2f5a8c;
-            color: white;
-            padding: clamp(0.5rem, 2vw, 0.7rem) clamp(0.7rem, 3vw, 1rem);
-            border-radius: 12px;
-            font-size: clamp(0.9rem, 3.5vw, 1.1rem);
-            flex: 1 1 140px;
-            min-width: 0;
-            cursor: pointer;
-            outline: none;
-            transition: 0.2s;
-            font-family: inherit;
-        }
-        select:hover, input:hover, select:focus, input:focus {
-            border-color: #5a9eff;
-        }
-        #playBtn {
-            background: #1e4b7a;
-            border: 2px solid #7abfff;
-            color: white;
-            font-size: clamp(1.3rem, 5vw, 2rem);
-            font-weight: bold;
-            padding: clamp(0.8rem, 3vw, 1rem);
-            border-radius: 20px;
-            cursor: pointer;
-            letter-spacing: 4px;
-            transition: all 0.2s;
-            box-shadow: 0 0 20px #2f8cff;
-            margin-top: 0.5rem;
-            font-family: inherit;
-            touch-action: manipulation;
-        }
-        #playBtn:hover, #playBtn:active {
-            background: #2f6eb0;
-            box-shadow: 0 0 40px #4faaff;
-            transform: scale(1.02);
-        }
-        #hud {
-            position: absolute;
-            top: max(10px, env(safe-area-inset-top));
-            left: max(10px, env(safe-area-inset-left));
-            color: white;
-            text-shadow: 2px 2px 4px black;
-            font-size: clamp(0.8rem, 3.5vw, 1.5rem);
-            background: rgba(0,0,0,0.55);
-            padding: clamp(6px, 2vw, 10px) clamp(12px, 4vw, 25px);
-            border-radius: 30px;
-            border-left: 4px solid #00ccff;
-            pointer-events: none;
-            z-index: 10;
-            white-space: nowrap;
-        }
-        #roleDisplay {
-            position: absolute;
-            top: max(10px, env(safe-area-inset-top));
-            right: max(10px, env(safe-area-inset-right));
-            color: #ffcc00;
-            font-size: clamp(0.8rem, 3.5vw, 1.5rem);
-            font-weight: bold;
-            text-shadow: 0 0 15px orange;
-            background: rgba(0,0,0,0.6);
-            padding: clamp(6px, 2vw, 10px) clamp(12px, 4vw, 25px);
-            border-radius: 20px;
-            border: 2px solid #ffaa00;
-            pointer-events: none;
-            z-index: 10;
-            white-space: nowrap;
-        }
-        #message {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: clamp(1rem, 4vw, 2rem);
-            background: rgba(0,0,0,0.85);
-            padding: clamp(15px, 5vw, 25px) clamp(20px, 6vw, 50px);
-            border-radius: 24px;
-            text-align: center;
-            z-index: 20;
-            border: 3px solid red;
-            display: none;
-            max-width: 90%;
-            text-shadow: 0 0 10px red;
-        }
-        .hidden {
-            display: none !important;
-        }
-        #touchControls {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 15;
-            display: none;
-        }
-        #touchControls.active {
-            display: block;
-        }
-        .joystick-zone {
-            position: absolute;
-            bottom: max(20px, env(safe-area-inset-bottom));
-            width: 140px;
-            height: 140px;
-            pointer-events: auto;
-            touch-action: none;
-        }
-        #joystickLeft {
-            left: max(20px, env(safe-area-inset-left));
-        }
-        #joystickBase {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            background: rgba(50, 100, 180, 0.25);
-            border: 3px solid rgba(120, 180, 255, 0.6);
-            box-shadow: 0 0 20px rgba(0, 150, 255, 0.4);
-        }
-        #joystickKnob {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: radial-gradient(circle, #7abfff, #2f6eb0);
-            border: 2px solid #aad0ff;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 15px #4faaff;
-            pointer-events: none;
-        }
-        #lookZone {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 55%;
-            height: 100%;
-            pointer-events: auto;
-            touch-action: none;
-        }
-        #loadingScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #03060b;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            z-index: 200;
-            font-size: clamp(1rem, 4vw, 1.5rem);
-        }
-        #loadingScreen .spinner {
-            width: 60px;
-            height: 60px;
-            border: 5px solid rgba(120, 180, 255, 0.2);
-            border-top-color: #7abfff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        #loadingScreen .status {
-            color: #aad0ff;
-            font-size: 0.9rem;
-            margin-top: 15px;
-            text-align: center;
-            max-width: 80%;
-        }
-        @media (orientation: landscape) and (max-height: 500px) {
-            .joystick-zone {
-                width: 110px;
-                height: 110px;
-                bottom: max(10px, env(safe-area-inset-bottom));
-            }
-            #joystickKnob {
-                width: 48px;
-                height: 48px;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Браузерные космонавты — побег от голодного предателя</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
+  #game { position: fixed; inset: 0; display: block; touch-action: none; }
+
+  /* ---------- МЕНЮ ---------- */
+  #menu {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 30%, #1b2735 0%, #090a0f 100%);
+    color: #fff; padding: 20px; gap: 12px; z-index: 10; overflow-y: auto;
+  }
+  #menu h1 {
+    font-size: clamp(26px, 8vw, 48px); letter-spacing: 2px;
+    text-shadow: 0 0 20px #ff3b3b, 0 0 40px #ff3b3b; margin-bottom: 6px; text-align: center;
+  }
+  #menu h1 span { color: #ff3b3b; }
+  .field { width: min(340px, 90vw); }
+  .field label {
+    display: block; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 1px; color: #9fb3c8; margin-bottom: 6px;
+  }
+  .field select, .field input {
+    width: 100%; padding: 12px; border-radius: 10px;
+    border: 2px solid #2c3e50; background: #131a24; color: #fff; font-size: 16px; outline: none;
+  }
+  .field select:focus, .field input:focus { border-color: #ff3b3b; }
+
+  #playBtn {
+    margin-top: 8px; width: min(340px, 90vw); padding: 15px;
+    font-size: 21px; font-weight: bold; letter-spacing: 2px; color: #fff;
+    background: linear-gradient(135deg, #ff3b3b, #c1121f); border: none;
+    border-radius: 14px; cursor: pointer; box-shadow: 0 6px 24px rgba(255,59,59,.5);
+  }
+  #playBtn:active { transform: scale(.96); }
+  .hint { font-size: 12px; color: #6b7c8f; text-align: center; max-width: 340px; line-height: 1.5; }
+
+  /* ---------- HUD ---------- */
+  #hud {
+    position: fixed; inset: 0; pointer-events: none; z-index: 5;
+    display: none; padding: 12px; color: #fff; font-weight: bold;
+  }
+  #topBar { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    background: rgba(0,0,0,.55); backdrop-filter: blur(4px);
+    padding: 7px 12px; border-radius: 30px; font-size: 14px;
+    border: 2px solid rgba(255,255,255,.15); white-space: nowrap;
+  }
+  #roleTag.crew { color: #4ade80; border-color: rgba(74,222,128,.5); }
+  #roleTag.impostor { color: #ff3b3b; border-color: rgba(255,59,59,.6); }
+
+  #over {
+    position: fixed; inset: 0; display: none; z-index: 20;
+    flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.88); color: #fff; text-align: center; padding: 20px; gap: 16px;
+  }
+  #over h2 { font-size: clamp(28px, 9vw, 52px); letter-spacing: 3px; }
+  #over.win h2 { color: #4ade80; text-shadow: 0 0 25px #4ade80; }
+  #over.lose h2 { color: #ff3b3b; text-shadow: 0 0 25px #ff3b3b; }
+  #over p { font-size: 16px; color: #9fb3c8; max-width: 340px; }
+  #over button {
+    padding: 14px 40px; font-size: 18px; font-weight: bold;
+    background: linear-gradient(135deg, #4a90d9, #2c5f8a); color: #fff;
+    border: none; border-radius: 12px; cursor: pointer; letter-spacing: 1px;
+  }
+
+  #joy {
+    position: fixed; z-index: 6; display: none;
+    width: 140px; height: 140px; border-radius: 50%;
+    background: rgba(255,255,255,.06); border: 2px solid rgba(255,255,255,.18);
+  }
+  #joyKnob {
+    position: absolute; left: 50%; top: 50%; width: 60px; height: 60px;
+    margin: -30px 0 0 -30px; border-radius: 50%;
+    background: rgba(255,255,255,.35); border: 2px solid rgba(255,255,255,.55);
+  }
+  #joyHint {
+    position: fixed; bottom: 22px; left: 0; right: 0; text-align: center;
+    color: rgba(255,255,255,.4); font-size: 12px; z-index: 6; display: none;
+  }
+</style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
 
-    <div id="loadingScreen">
-        <div class="spinner"></div>
-        <div>Загрузка Three.js…</div>
-        <div class="status" id="loadingStatus">Проверяю зеркала…</div>
-    </div>
+<canvas id="game"></canvas>
 
-    <div id="menu" class="hidden">
-        <h1>БРАУЗЕРНЫЕ КОСМОНАВТЫ</h1>
-        <div class="menu-panel">
-            <div class="menu-row">
-                <label>Карта:</label>
-                <select id="mapSelect">
-                    <option value="small">Малая</option>
-                    <option value="medium" selected>Средняя</option>
-                    <option value="large">Большая</option>
-                </select>
-            </div>
-            <div class="menu-row">
-                <label>Режим:</label>
-                <select id="roleSelect">
-                    <option value="crew" selected>Космонавт</option>
-                    <option value="impostor">Предатель</option>
-                </select>
-            </div>
-            <div class="menu-row">
-                <label>Время (мин):</label>
-                <input type="number" id="timeInput" value="5" min="1" max="30" step="1" inputmode="numeric">
-            </div>
-            <button id="playBtn" type="button">ИГРАТЬ!</button>
-        </div>
-    </div>
+<div id="menu">
+  <h1>БРАУЗЕРНЫЕ <span>КОСМОНАВТЫ</span></h1>
+  <div class="field">
+    <label>Карта</label>
+    <select id="mapSel">
+      <option value="skeld">The Skeld</option>
+      <option value="polus">Polus</option>
+      <option value="mira">MIRA HQ</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Режим</label>
+    <select id="modeSel">
+      <option value="crew">Космонавт</option>
+      <option value="impostor">Предатель</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Время (секунд)</label>
+    <input id="timeInp" type="number" value="300" min="30" max="1200" step="30">
+  </div>
+  <button id="playBtn">ИГРАТЬ!</button>
+  <p class="hint">
+    Космонавт: беги от предателя и не дай съесть союзников.<br>
+    Предатель: догоняй и ешь космонавтов.<br>
+    WASD / стрелки / джойстик.
+  </p>
+</div>
 
-    <div id="hud" class="hidden">Время: <span id="timer">5:00</span> | Союзников: <span id="allyCount">4</span></div>
-    <div id="roleDisplay" class="hidden"></div>
-    <div id="message"></div>
+<div id="hud">
+  <div id="topBar">
+    <div class="pill" id="timer">05:00</div>
+    <div class="pill" id="roleTag">КОСМОНАВТ</div>
+    <div class="pill" id="scoreTag">Союзники: 3</div>
+  </div>
+</div>
 
-    <div id="touchControls">
-        <div class="joystick-zone" id="joystickLeft">
-            <div id="joystickBase">
-                <div id="joystickKnob"></div>
-            </div>
-        </div>
-        <div id="lookZone"></div>
-    </div>
+<div id="over">
+  <h2 id="overTitle">ПОБЕДА</h2>
+  <p id="overText"></p>
+  <button id="menuBtn">В МЕНЮ</button>
+</div>
 
-    <script>
-(async function loadThree() {
-    const mirrors = [
-        'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js',
-        'https://esm.sh/three@0.128.0',
-        'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js',
-        'https://unpkg.com/three@0.128.0/build/three.module.js',
-        'https://cdn.statically.io/gh/mrdoob/three.js/r128/build/three.module.js',
-        'https://raw.githack.com/mrdoob/three.js/r128/build/three.module.js',
-        'https://skypack.dev/three@0.128.0'
+<div id="joy"><div id="joyKnob"></div></div>
+<div id="joyHint">◀ Тяни джойстик ▶</div>
+
+<script>
+(() => {
+"use strict";
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+const TILE = 56;
+const WALL = 1, FLOOR = 0;
+const PLAYER_SPEED = 175;
+const AI_SPEED_CREW = 115;
+const AI_SPEED_IMPOSTOR = 148;
+const KILL_DIST = 30;
+const TOUCH_DIST = 24;
+const BODY_R = 16;
+const PLAYER_RADIUS = 14;   // радиус хитбокса игрока (пиксели)
+
+let state = 'menu';
+let map = null, mapW = 0, mapH = 0;
+let player = null, allies = [], impostor = null;
+let timeLeft = 0, gameMode = 'crew', mapKey = 'skeld';
+
+let camX = 0, camY = 0;
+
+const keys = {};
+let joyActive = false, joyId = null, joyVX = 0, joyVY = 0;
+let joyCenterX = 0, joyCenterY = 0;
+
+let lastT = 0;
+
+// ============ КАРТЫ ============
+function buildMap(key) {
+  let W, H, grid, spawns;
+  const rect = (g, x, y, w, h, v) => {
+    for (let j = y; j < y + h; j++)
+      for (let i = x; i < x + w; i++)
+        if (j >= 0 && j < g.length && i >= 0 && i < g[0].length) g[j][i] = v;
+  };
+  const room = (g, x, y, w, h) => rect(g, x, y, w, h, FLOOR);
+  const corrH = (g, x, y, w) => rect(g, x, y, w, 1, FLOOR);
+  const corrV = (g, x, y, h) => rect(g, x, y, 1, h, FLOOR);
+
+  if (key === 'skeld') {
+    W = 30; H = 22;
+    grid = Array.from({length: H}, () => Array(W).fill(WALL));
+    room(grid, 2, 2, 7, 5);
+    room(grid, 12, 2, 7, 4);
+    room(grid, 22, 2, 6, 6);
+    room(grid, 2, 9, 6, 6);
+    room(grid, 12, 8, 7, 7);
+    room(grid, 22, 10, 6, 5);
+    room(grid, 2, 18, 8, 3);
+    room(grid, 13, 18, 6, 3);
+    room(grid, 22, 18, 6, 3);
+    corrV(grid, 5, 7, 2);
+    corrV(grid, 15, 6, 2);
+    corrV(grid, 25, 8, 2);
+    corrH(grid, 9, 4, 3);
+    corrH(grid, 19, 4, 3);
+    corrH(grid, 8, 12, 4);
+    corrH(grid, 19, 12, 3);
+    corrV(grid, 5, 15, 3);
+    corrV(grid, 15, 15, 3);
+    corrV(grid, 25, 15, 3);
+    corrH(grid, 10, 19, 3);
+    corrH(grid, 19, 19, 3);
+    spawns = [
+      {x: 15.5, y: 11.5},
+      {x: 5.5, y: 11.5},
+      {x: 25.5, y: 12.5},
+      {x: 15.5, y: 19.5},
     ];
+  } else if (key === 'polus') {
+    W = 28; H = 22;
+    grid = Array.from({length: H}, () => Array(W).fill(WALL));
+    room(grid, 2, 2, 9, 6);
+    room(grid, 17, 2, 9, 6);
+    room(grid, 2, 14, 8, 6);
+    room(grid, 16, 14, 10, 6);
+    room(grid, 11, 8, 6, 7);
+    corrH(grid, 11, 4, 6);
+    corrH(grid, 10, 16, 6);
+    corrV(grid, 13, 6, 2);
+    corrV(grid, 14, 15, 1);
+    corrV(grid, 5, 8, 6);
+    corrV(grid, 22, 8, 6);
+    spawns = [
+      {x: 14, y: 11},
+      {x: 6.5, y: 5.5},
+      {x: 21.5, y: 5.5},
+      {x: 6.5, y: 17},
+    ];
+  } else {
+    W = 26; H = 24;
+    grid = Array.from({length: H}, () => Array(W).fill(WALL));
+    room(grid, 3, 2, 8, 6);
+    room(grid, 15, 2, 8, 6);
+    room(grid, 3, 12, 8, 6);
+    room(grid, 15, 12, 8, 6);
+    room(grid, 9, 8, 8, 7);
+    corrV(grid, 6, 8, 4);
+    corrV(grid, 19, 8, 4);
+    corrV(grid, 6, 18, 4);
+    corrV(grid, 19, 18, 4);
+    corrH(grid, 11, 11, 4);
+    corrH(grid, 10, 22, 6);
+    spawns = [
+      {x: 13, y: 11},
+      {x: 7, y: 5},
+      {x: 19, y: 5},
+      {x: 7, y: 15},
+    ];
+  }
+  return {W, H, grid, spawns};
+}
 
-    const statusEl = document.getElementById('loadingStatus');
-    let threeCode = null;
+// isWall принимает ТАЙЛОВЫЕ координаты
+function isWall(gx, gy) {
+  if (gx < 0 || gy < 0 || gx >= mapW || gy >= mapH) return true;
+  return map[gy][gx] === WALL;
+}
 
-    for (let i = 0; i < mirrors.length; i++) {
-        const url = mirrors[i];
-        statusEl.textContent = `Попытка ${i + 1}/${mirrors.length}: ${new URL(url).hostname}`;
-        try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 6000);
-            const resp = await fetch(url, { signal: controller.signal });
-            clearTimeout(timeout);
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const text = await resp.text();
-            if (text.length < 50000) throw new Error('Файл слишком маленький (' + text.length + ' байт)');
-            threeCode = text;
-            console.log('✓ Three.js загружен с:', url, '| размер:', text.length);
-            break;
-        } catch (e) {
-            console.warn('✗ Не удалось с', url, ':', e.message);
+// isFree принимает ПИКСЕЛЬНЫЕ координаты
+// Проверяем 4 угла хитбокса радиуса PLAYER_RADIUS
+const _t = v => (v / TILE) | 0;
+function isFree(x, y) {
+  const r = PLAYER_RADIUS;
+  return !isWall(_t(x - r), _t(y - r)) &&
+         !isWall(_t(x + r), _t(y - r)) &&
+         !isWall(_t(x - r), _t(y + r)) &&
+         !isWall(_t(x + r), _t(y + r));
+}
+
+function hasLOS(x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const d = Math.hypot(dx, dy);
+  if (d < 1) return true;
+  const steps = Math.ceil(d / 16);
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    if (isWall(_t(x1 + dx * t), _t(y1 + dy * t))) return false;
+  }
+  return true;
+}
+
+// ============ СПРАЙТ ============
+function drawCrewmate(sx, sy, angle, color, isImpostor, isPlayer) {
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(angle + Math.PI / 2);
+
+  const R = BODY_R;
+
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  ctx.beginPath();
+  ctx.ellipse(2, 4, R * 1.05, R * 0.85, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = shade(color, -30);
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(-R * 0.75, -R * 1.35, R * 1.5, R * 0.75, 6);
+  else ctx.rect(-R * 0.75, -R * 1.35, R * 1.5, R * 0.75);
+  ctx.fill();
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(-R, -R, R * 2, R * 2.15, R * 0.85);
+  else ctx.rect(-R, -R, R * 2, R * 2.15);
+  ctx.fill();
+
+  ctx.fillStyle = shade(color, -25);
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(-R * 0.85, R * 0.9, R * 0.7, R * 0.55, 4);
+  else ctx.rect(-R * 0.85, R * 0.9, R * 0.7, R * 0.55);
+  ctx.fill();
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(R * 0.15, R * 0.9, R * 0.7, R * 0.55, 4);
+  else ctx.rect(R * 0.15, R * 0.9, R * 0.7, R * 0.55);
+  ctx.fill();
+
+  ctx.fillStyle = '#0e1621';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(-R * 0.72, -R * 0.75, R * 1.44, R * 0.85, R * 0.35);
+  else ctx.rect(-R * 0.72, -R * 0.75, R * 1.44, R * 0.85);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(120,190,255,.55)';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(-R * 0.60, -R * 0.68, R * 0.55, R * 0.35, 4);
+  else ctx.rect(-R * 0.60, -R * 0.68, R * 0.55, R * 0.35);
+  ctx.fill();
+
+  if (isImpostor) {
+    ctx.fillStyle = '#ff2020';
+    ctx.beginPath();
+    ctx.arc(-R * 0.35, -R * 0.38, R * 0.14, 0, Math.PI * 2);
+    ctx.arc(R * 0.35, -R * 0.38, R * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(-R * 0.35, -R * 0.38, R * 0.06, 0, Math.PI * 2);
+    ctx.arc(R * 0.35, -R * 0.38, R * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(0, R * 0.28, R * 0.55, R * 0.30, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * R * 0.22 - R * 0.07, R * 0.05);
+      ctx.lineTo(i * R * 0.22, R * 0.30);
+      ctx.lineTo(i * R * 0.22 + R * 0.07, R * 0.05);
+      ctx.fill();
+    }
+  }
+
+  if (isPlayer) {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-R - 2, -R - 2, R * 2 + 4, R * 2.15 + 4, R * 0.9);
+    else ctx.rect(-R - 2, -R - 2, R * 2 + 4, R * 2.15 + 4);
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.moveTo(0, -R - 14);
+    ctx.lineTo(-7, -R - 4);
+    ctx.lineTo(7, -R - 4);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function shade(hex, amt) {
+  let c = hex.replace('#', '');
+  if (c.length === 3) c = c.split('').map(x => x + x).join('');
+  let r = parseInt(c.substr(0, 2), 16);
+  let g = parseInt(c.substr(2, 2), 16);
+  let b = parseInt(c.substr(4, 2), 16);
+  r = Math.max(0, Math.min(255, r + amt));
+  g = Math.max(0, Math.min(255, g + amt));
+  b = Math.max(0, Math.min(255, b + amt));
+  return `rgb(${r},${g},${b})`;
+}
+
+// ============ РЕНДЕР ============
+function render() {
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = '#05070a';
+  ctx.fillRect(0, 0, W, H);
+  if (!player) return;
+
+  const worldW = mapW * TILE, worldH = mapH * TILE;
+  if (worldW < W) camX = (worldW - W) / 2;
+  else camX = Math.max(0, Math.min(worldW - W, player.x - W / 2));
+  if (worldH < H) camY = (worldH - H) / 2;
+  else camY = Math.max(0, Math.min(worldH - H, player.y - H / 2));
+
+  ctx.save();
+  ctx.translate(-camX, -camY);
+
+  const x0 = Math.max(0, (camX / TILE) | 0);
+  const y0 = Math.max(0, (camY / TILE) | 0);
+  const x1 = Math.min(mapW - 1, ((camX + W) / TILE) | 0);
+  const y1 = Math.min(mapH - 1, ((camY + H) / TILE) | 0);
+
+  for (let gy = y0; gy <= y1; gy++) {
+    for (let gx = x0; gx <= x1; gx++) {
+      const px = gx * TILE, py = gy * TILE;
+      if (map[gy][gx] === WALL) {
+        ctx.fillStyle = '#2a3648';
+        ctx.fillRect(px, py, TILE, TILE);
+        ctx.fillStyle = '#3a4a63';
+        ctx.fillRect(px, py, TILE, 6);
+        ctx.fillStyle = '#1a2333';
+        ctx.fillRect(px, py + TILE - 6, TILE, 6);
+        ctx.strokeStyle = 'rgba(0,0,0,.35)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px + 0.5, py + 0.5, TILE, TILE);
+      } else {
+        ctx.fillStyle = ((gx + gy) & 1) === 0 ? '#1a2333' : '#161e2c';
+        ctx.fillRect(px, py, TILE, TILE);
+        ctx.strokeStyle = 'rgba(255,255,255,.03)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px + 0.5, py + 0.5, TILE, TILE);
+      }
+    }
+  }
+
+  const sprites = [];
+  if (gameMode === 'crew') {
+    for (const a of allies)
+      sprites.push({ y: a.y, draw: () => drawCrewmate(a.x, a.y, a.angle, a.color, false, false) });
+    if (impostor)
+      sprites.push({ y: impostor.y, draw: () => drawCrewmate(impostor.x, impostor.y, impostor.angle, '#c1121f', true, false) });
+  } else {
+    for (const a of allies)
+      sprites.push({ y: a.y, draw: () => drawCrewmate(a.x, a.y, a.angle, a.color, false, false) });
+  }
+
+  const playerIsImpostor = (gameMode === 'impostor');
+  sprites.push({
+    y: player.y,
+    draw: () => drawCrewmate(player.x, player.y, player.angle,
+      playerIsImpostor ? '#c1121f' : '#4ade80', playerIsImpostor, true)
+  });
+
+  sprites.sort((a, b) => a.y - b.y);
+  for (const s of sprites) s.draw();
+  ctx.restore();
+
+  const vg = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.35, W/2, H/2, Math.max(W,H)*0.75);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, gameMode === 'impostor' ? 'rgba(80,0,0,0.45)' : 'rgba(0,0,0,0.55)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// ============ ЛОГИКА ============
+function updatePlayer(dt) {
+  if (!player) return;
+
+  let mx = 0, my = 0;
+  if (keys['w'] || keys['arrowup'])    my -= 1;
+  if (keys['s'] || keys['arrowdown'])  my += 1;
+  if (keys['a'] || keys['arrowleft'])  mx -= 1;
+  if (keys['d'] || keys['arrowright']) mx += 1;
+
+  if (joyActive) {
+    mx += joyVX;
+    my += joyVY;
+  }
+
+  const len = Math.hypot(mx, my);
+  if (len > 0.05) {
+    mx /= len; my /= len;
+    const spd = PLAYER_SPEED * (gameMode === 'impostor' ? 1.15 : 1);
+    const step = spd * dt;
+
+    // Движение по X со «скольжением» вдоль стены
+    if (isFree(player.x + mx * step, player.y)) {
+      player.x += mx * step;
+    } else {
+      for (let s = step; s > 0; s -= 1) {
+        if (isFree(player.x + mx * s, player.y)) { player.x += mx * s; break; }
+      }
+    }
+
+    // Движение по Y со «скольжением»
+    if (isFree(player.x, player.y + my * step)) {
+      player.y += my * step;
+    } else {
+      for (let s = step; s > 0; s -= 1) {
+        if (isFree(player.x, player.y + my * s)) { player.y += my * s; break; }
+      }
+    }
+
+    player.angle = Math.atan2(my, mx);
+  }
+}
+
+function moveEntity(e, dirX, dirY, dt, speed) {
+  const len = Math.hypot(dirX, dirY);
+  if (len < 0.01) return;
+  dirX /= len; dirY /= len;
+  const step = speed * dt;
+
+  if (isFree(e.x + dirX * step, e.y)) e.x += dirX * step;
+  else {
+    for (let s = step; s > 0; s -= 1) {
+      if (isFree(e.x + dirX * s, e.y)) { e.x += dirX * s; break; }
+    }
+  }
+  if (isFree(e.x, e.y + dirY * step)) e.y += dirY * step;
+  else {
+    for (let s = step; s > 0; s -= 1) {
+      if (isFree(e.x, e.y + dirY * s)) { e.y += dirY * s; break; }
+    }
+  }
+  e.angle = Math.atan2(dirY, dirX);
+}
+
+function updateAllies(dt) {
+  for (const a of allies) {
+    let tx = a.tx, ty = a.ty;
+    let fleeing = false;
+
+    if (impostor) {
+      const d = Math.hypot(impostor.x - a.x, impostor.y - a.y);
+      if (d < 260) {
+        a.tx = a.x + (a.x - impostor.x) * 2;
+        a.ty = a.y + (a.y - impostor.y) * 2;
+        tx = a.tx; ty = a.ty; fleeing = true;
+      }
+    } else if (gameMode === 'impostor' && player) {
+      const d = Math.hypot(player.x - a.x, player.y - a.y);
+      if (d < 220) {
+        a.tx = a.x + (a.x - player.x) * 2;
+        a.ty = a.y + (a.y - player.y) * 2;
+        tx = a.tx; ty = a.ty; fleeing = true;
+      }
+    }
+
+    if (!fleeing && (Math.hypot(tx - a.x, ty - a.y) < 20 || a.repath <= 0)) {
+      for (let tries = 0; tries < 25; tries++) {
+        const rx = 1 + Math.random() * (mapW - 2);
+        const ry = 1 + Math.random() * (mapH - 2);
+        if (isFree(rx * TILE, ry * TILE) && hasLOS(a.x, a.y, rx * TILE, ry * TILE)) {
+          a.tx = rx * TILE; a.ty = ry * TILE;
+          break;
         }
+      }
+      a.repath = 1.5 + Math.random() * 2;
     }
+    a.repath -= dt;
 
-    if (!threeCode) {
-        statusEl.innerHTML = `
-            <div style="color:#ff8888;margin-top:20px;">
-                <b>Не удалось загрузить Three.js</b><br><br>
-                Все зеркала недоступны из вашей сети.<br>
-                Включите VPN на 30 секунд и обновите страницу.
-            </div>`;
-        return;
+    moveEntity(a, tx - a.x, ty - a.y, dt, fleeing ? AI_SPEED_CREW * 1.15 : AI_SPEED_CREW);
+  }
+}
+
+function updateImpostor(dt) {
+  if (!impostor) return;
+  let best = null, bestDist = Infinity, bestType = null;
+  for (const a of allies) {
+    const d = Math.hypot(a.x - impostor.x, a.y - impostor.y);
+    if (d < bestDist && hasLOS(impostor.x, impostor.y, a.x, a.y)) {
+      bestDist = d; best = a; bestType = 'ally';
     }
+  }
+  if (player) {
+    const d = Math.hypot(player.x - impostor.x, player.y - impostor.y);
+    if (d < bestDist && hasLOS(impostor.x, impostor.y, player.x, player.y)) {
+      bestDist = d; best = player; bestType = 'player';
+    }
+  }
 
-    const blob = new Blob([threeCode], { type: 'application/javascript' });
-    const blobUrl = URL.createObjectURL(blob);
+  if (best) {
+    moveEntity(impostor, best.x - impostor.x, best.y - impostor.y, dt, AI_SPEED_IMPOSTOR);
+    if (bestType === 'ally' && bestDist < KILL_DIST) {
+      const i = allies.indexOf(best);
+      if (i >= 0) allies.splice(i, 1);
+      flash('Союзник съеден!', '#ff3b3b');
+    }
+    if (bestType === 'player' && bestDist < TOUCH_DIST) {
+      endGame(false, 'Предатель догнал тебя. Ты уничтожен.');
+    }
+  } else {
+    if (!impostor.tx || impostor.repath <= 0 ||
+        Math.hypot(impostor.tx - impostor.x, impostor.ty - impostor.y) < 20) {
+      for (let tries = 0; tries < 30; tries++) {
+        const rx = 1 + Math.random() * (mapW - 2);
+        const ry = 1 + Math.random() * (mapH - 2);
+        if (isFree(rx * TILE, ry * TILE) && hasLOS(impostor.x, impostor.y, rx * TILE, ry * TILE)) {
+          impostor.tx = rx * TILE; impostor.ty = ry * TILE;
+          break;
+        }
+      }
+      impostor.repath = 2 + Math.random() * 2;
+    }
+    impostor.repath -= dt;
+    moveEntity(impostor, impostor.tx - impostor.x, impostor.ty - impostor.y, dt, AI_SPEED_IMPOSTOR * 0.7);
+  }
+}
 
-    const importmap = document.createElement('script');
-    importmap.type = 'importmap';
-    importmap.textContent = JSON.stringify({ imports: { "three": blobUrl } });
-    document.head.appendChild(importmap);
+function checkPlayerEatsAllies() {
+  if (gameMode !== 'impostor' || !player) return;
+  for (let i = allies.length - 1; i >= 0; i--) {
+    const a = allies[i];
+    if (Math.hypot(a.x - player.x, a.y - player.y) < KILL_DIST) {
+      allies.splice(i, 1);
+      flash('Съеден космонавт!', '#ff6b6b');
+    }
+  }
+}
 
-    statusEl.textContent = 'Запуск игры…';
+// ============ HUD ============
+const timerEl = document.getElementById('timer');
+const roleEl = document.getElementById('roleTag');
+const scoreEl = document.getElementById('scoreTag');
+let flashMsg = '', flashColor = '#fff', flashTime = 0;
+function flash(msg, color) { flashMsg = msg; flashColor = color; flashTime = 1.4; }
 
-    const gameScript = document.createElement('script');
-    gameScript.type = 'module';
-    gameScript.textContent = document.getElementById('gameSource').textContent;
-    // ВАЖНО: ждём загрузки модуля, потом показываем меню
-    gameScript.onload = () => {
-        setTimeout(() => {
-            document.getElementById('loadingScreen').style.display = 'none';
-            document.getElementById('menu').classList.remove('hidden');
-        }, 400);
+function updateHUD(dt) {
+  if (flashTime > 0) flashTime -= dt;
+  const m = Math.floor(Math.max(0, timeLeft) / 60);
+  const s = Math.floor(Math.max(0, timeLeft) % 60);
+  timerEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  if (gameMode === 'crew') {
+    roleEl.textContent = 'КОСМОНАВТ';
+    roleEl.className = 'pill crew';
+    scoreEl.textContent = `Союзники: ${allies.length}`;
+  } else {
+    roleEl.textContent = 'ПРЕДАТЕЛЬ';
+    roleEl.className = 'pill impostor';
+    scoreEl.textContent = `Съесть осталось: ${allies.length}`;
+  }
+}
+
+function drawFlash() {
+  if (flashTime > 0) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, flashTime / 0.5);
+    ctx.fillStyle = flashColor;
+    ctx.font = `bold ${Math.min(canvas.width * 0.05, 36)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#000'; ctx.shadowBlur = 8;
+    ctx.fillText(flashMsg, canvas.width / 2, canvas.height * 0.18);
+    ctx.restore();
+  }
+}
+
+// ============ ЦИКЛ ============
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function loop(t) {
+  const dt = Math.min(0.05, (t - lastT) / 1000 || 0);
+  lastT = t;
+
+  if (state === 'play') {
+    timeLeft -= dt;
+    updatePlayer(dt);
+    if (gameMode === 'crew') {
+      updateAllies(dt);
+      if (impostor) updateImpostor(dt);
+    } else {
+      updateAllies(dt);
+      checkPlayerEatsAllies();
+    }
+    updateHUD(dt);
+
+    if (timeLeft <= 0) {
+      if (gameMode === 'crew') endGame(true, 'Ты выжил! Космонавты победили.');
+      else endGame(false, 'Время вышло. Предатель не успел съесть всех.');
+    }
+    if (gameMode === 'impostor' && allies.length === 0)
+      endGame(true, 'Ты съел всех космонавтов. Предатель победил!');
+    if (gameMode === 'crew' && allies.length === 0)
+      endGame(false, 'Все союзники съедены. Ты остался один...');
+  }
+
+  render();
+  drawFlash();
+  requestAnimationFrame(loop);
+}
+
+// ============ СТАРТ / КОНЕЦ ============
+const menuEl = document.getElementById('menu');
+const overEl = document.getElementById('over');
+const overTitle = document.getElementById('overTitle');
+const overText = document.getElementById('overText');
+const hudEl = document.getElementById('hud');
+
+function startGame() {
+  mapKey = document.getElementById('mapSel').value;
+  gameMode = document.getElementById('modeSel').value;
+  let t = parseInt(document.getElementById('timeInp').value, 10);
+  if (isNaN(t) || t < 10) t = 300;
+  if (t > 1200) t = 1200;
+  timeLeft = t;
+
+  const data = buildMap(mapKey);
+  map = data.grid; mapW = data.W; mapH = data.H;
+  const spawns = data.spawns;
+  const colors = ['#4ade80', '#4a90d9', '#facc15', '#a78bfa', '#f472b6', '#fb923c'];
+
+  const ps = spawns[0];
+  player = { x: ps.x * TILE, y: ps.y * TILE, angle: -Math.PI / 2 };
+
+  allies = [];
+  for (let i = 0; i < 3; i++) {
+    const sp = spawns[(i + 1) % spawns.length];
+    allies.push({
+      x: sp.x * TILE + (Math.random() - 0.5) * 20,
+      y: sp.y * TILE + (Math.random() - 0.5) * 20,
+      color: colors[i % colors.length],
+      angle: 0, tx: sp.x * TILE, ty: sp.y * TILE, repath: 0,
+    });
+  }
+
+  if (gameMode === 'crew') {
+    const sp = spawns[spawns.length - 1];
+    impostor = {
+      x: sp.x * TILE, y: sp.y * TILE, color: '#c1121f',
+      angle: 0, tx: sp.x * TILE, ty: sp.y * TILE, repath: 0,
     };
-    // Для inline-скрипта onload не срабатывает, поэтому ставим таймер-страховку
-    document.body.appendChild(gameScript);
+  } else {
+    impostor = null;
+  }
 
-    // Страховка: если через 2 секунды меню всё ещё не показано — покажем принудительно
-    setTimeout(() => {
-        const loading = document.getElementById('loadingScreen');
-        if (loading && loading.style.display !== 'none') {
-            loading.style.display = 'none';
-            document.getElementById('menu').classList.remove('hidden');
-        }
-    }, 2000);
+  state = 'play';
+  menuEl.style.display = 'none';
+  overEl.style.display = 'none';
+  hudEl.style.display = 'block';
+
+  if (isTouch) {
+    document.getElementById('joy').style.display = 'block';
+    document.getElementById('joyHint').style.display = 'block';
+    positionJoy();
+  }
+}
+
+function endGame(win, text) {
+  if (state === 'over') return;
+  state = 'over';
+  overEl.className = win ? 'win' : 'lose';
+  overTitle.textContent = win ? 'ПОБЕДА' : 'ПОРАЖЕНИЕ';
+  overText.textContent = text;
+  overEl.style.display = 'flex';
+  hudEl.style.display = 'none';
+  document.getElementById('joy').style.display = 'none';
+  document.getElementById('joyHint').style.display = 'none';
+  joyActive = false;
+  joyId = null;
+  joyVX = joyVY = 0;
+}
+
+document.getElementById('playBtn').addEventListener('click', startGame);
+document.getElementById('menuBtn').addEventListener('click', () => {
+  state = 'menu';
+  overEl.style.display = 'none';
+  menuEl.style.display = 'flex';
+  hudEl.style.display = 'none';
+  document.getElementById('joy').style.display = 'none';
+  document.getElementById('joyHint').style.display = 'none';
+});
+
+// ============ КЛАВИАТУРА ============
+window.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+// ============ ДЖОЙСТИК ============
+const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+const joyEl = document.getElementById('joy');
+const joyKnob = document.getElementById('joyKnob');
+const JOY_RADIUS = 70;
+
+function positionJoy() {
+  const size = 140, margin = 24;
+  const left = margin;
+  const top = window.innerHeight - size - margin;
+  joyEl.style.left = left + 'px';
+  joyEl.style.top = top + 'px';
+  joyCenterX = left + size / 2;
+  joyCenterY = top + size / 2;
+}
+window.addEventListener('resize', () => { if (state === 'play' && isTouch) positionJoy(); });
+
+joyEl.addEventListener('touchstart', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (joyId !== null) return;
+  const t = e.changedTouches[0];
+  joyId = t.identifier;
+  joyActive = true;
+  const r = joyEl.getBoundingClientRect();
+  joyCenterX = r.left + r.width / 2;
+  joyCenterY = r.top + r.height / 2;
+  moveJoy(t.clientX, t.clientY);
+}, {passive: false});
+
+function onTouchMove(e) {
+  if (joyId === null) return;
+  for (const t of e.changedTouches) {
+    if (t.identifier === joyId) {
+      e.preventDefault();
+      moveJoy(t.clientX, t.clientY);
+      break;
+    }
+  }
+}
+document.addEventListener('touchmove', onTouchMove, {passive: false});
+
+function onTouchEnd(e) {
+  if (joyId === null) return;
+  for (const t of e.changedTouches) {
+    if (t.identifier === joyId) {
+      joyId = null;
+      joyActive = false;
+      joyVX = joyVY = 0;
+      joyKnob.style.transform = 'translate(0,0)';
+      break;
+    }
+  }
+}
+document.addEventListener('touchend', onTouchEnd);
+document.addEventListener('touchcancel', onTouchEnd);
+
+function moveJoy(x, y) {
+  let dx = x - joyCenterX;
+  let dy = y - joyCenterY;
+  const len = Math.hypot(dx, dy);
+  const max = JOY_RADIUS * 0.7;
+  if (len > max) { dx = dx / len * max; dy = dy / len * max; }
+  joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+  joyVX = dx / max;
+  joyVY = dy / max;
+}
+
+requestAnimationFrame(loop);
+
 })();
-    </script>
-        <!-- ============================================================
-         ИСХОДНЫЙ КОД ИГРЫ (хранится как текст, запустится после загрузки Three.js)
-         ============================================================ -->
-    <script type="text/plain" id="gameSource">
-        // ==================== ОПРЕДЕЛЕНИЕ МОБИЛЬНОГО УСТРОЙСТВА ====================
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-                        || ('ontouchstart' in window && navigator.maxTouchPoints > 1);
-        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-
-        // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
-        let scene, camera, renderer;
-        let player = { obj: null, isImpostor: false };
-        let allies = [];
-        let impostorObj = null;
-        let gameActive = false;
-        let timeLeft = 300;
-        let gameTimerInterval = null;
-        const clock = new THREE.Clock();
-        let mapSize = 30;
-
-        // Ссылки на DOM
-        const menuEl = document.getElementById('menu');
-        const playBtn = document.getElementById('playBtn');
-        const mapSelect = document.getElementById('mapSelect');
-        const roleSelect = document.getElementById('roleSelect');
-        const timeInput = document.getElementById('timeInput');
-        const timerSpan = document.getElementById('timer');
-        const allyCountSpan = document.getElementById('allyCount');
-        const roleDisplay = document.getElementById('roleDisplay');
-        const messageEl = document.getElementById('message');
-        const hudEl = document.getElementById('hud');
-        const touchControls = document.getElementById('touchControls');
-        const joystickBase = document.getElementById('joystickBase');
-        const joystickKnob = document.getElementById('joystickKnob');
-        const lookZone = document.getElementById('lookZone');
-        const canvas = document.getElementById('gameCanvas');
-
-        // ==================== ИНИЦИАЛИЗАЦИЯ THREE.JS ====================
-        function initScene() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a0a20);
-            scene.fog = new THREE.FogExp2(0x0a0a20, 0.015);
-
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
-            camera.position.set(0, 1.7, 0);
-            camera.rotation.order = 'YXZ';
-
-            renderer = new THREE.WebGLRenderer({
-                canvas: canvas,
-                antialias: !isMobile,
-                powerPreference: 'high-performance',
-                alpha: false,
-                stencil: false,
-                depth: true
-            });
-
-            const pixelRatio = isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2);
-            renderer.setPixelRatio(pixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-
-            if (!isMobile) {
-                renderer.shadowMap.enabled = true;
-                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            } else {
-                renderer.shadowMap.enabled = false;
-            }
-
-            if (renderer.outputEncoding !== undefined) {
-                renderer.outputEncoding = THREE.sRGBEncoding;
-            }
-        }
-
-        // ==================== ОСВЕЩЕНИЕ ====================
-        function addLights() {
-            const ambient = new THREE.AmbientLight(0x505070, 1.2);
-            scene.add(ambient);
-
-            const mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
-            mainLight.position.set(10, 20, 5);
-            if (!isMobile) {
-                mainLight.castShadow = true;
-                mainLight.shadow.mapSize.width = 1024;
-                mainLight.shadow.mapSize.height = 1024;
-                const d = 30;
-                mainLight.shadow.camera.left = -d;
-                mainLight.shadow.camera.right = d;
-                mainLight.shadow.camera.top = d;
-                mainLight.shadow.camera.bottom = -d;
-                mainLight.shadow.camera.far = 50;
-            }
-            scene.add(mainLight);
-
-            const fillLight = new THREE.PointLight(0x4466ff, 0.4);
-            fillLight.position.set(-5, 3, 5);
-            scene.add(fillLight);
-        }
-
-        // ==================== СОЗДАНИЕ КАРТЫ ====================
-        function createMap(type) {
-            const oldGround = scene.getObjectByName('ground');
-            if (oldGround) scene.remove(oldGround);
-
-            const wallsToRemove = [];
-            scene.traverse(obj => {
-                if (obj.name === 'wall') wallsToRemove.push(obj);
-            });
-            wallsToRemove.forEach(w => scene.remove(w));
-
-            let sizeX, sizeZ;
-            const wallHeight = 3;
-            const wallThickness = 1;
-
-            if (type === 'small') { sizeX = 20; sizeZ = 20; }
-            else if (type === 'medium') { sizeX = 30; sizeZ = 30; }
-            else { sizeX = 45; sizeZ = 45; }
-
-            mapSize = Math.min(sizeX, sizeZ);
-
-            const groundGeo = new THREE.BoxGeometry(sizeX, 0.5, sizeZ);
-            const groundMat = new THREE.MeshLambertMaterial({ color: 0x2a2a4a });
-            const ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.name = 'ground';
-            ground.position.y = -0.25;
-            ground.receiveShadow = !isMobile;
-            scene.add(ground);
-
-            const wallMat = new THREE.MeshLambertMaterial({ color: 0x4a6a9a });
-
-            function addWall(x, z, w, d) {
-                const wallGeo = new THREE.BoxGeometry(w, wallHeight, d);
-                const wall = new THREE.Mesh(wallGeo, wallMat);
-                wall.position.set(x, wallHeight / 2, z);
-                wall.castShadow = !isMobile;
-                wall.receiveShadow = !isMobile;
-                wall.name = 'wall';
-                scene.add(wall);
-            }
-
-            const halfX = sizeX / 2;
-            const halfZ = sizeZ / 2;
-            addWall(0, -halfZ, sizeX, wallThickness);
-            addWall(0, halfZ, sizeX, wallThickness);
-            addWall(-halfX, 0, wallThickness, sizeZ);
-            addWall(halfX, 0, wallThickness, sizeZ);
-
-            if (type === 'medium') {
-                addWall(-5, -5, 4, 1);
-                addWall(5, 5, 1, 4);
-                addWall(0, 8, 3, 0.5);
-                addWall(-8, 0, 0.5, 5);
-            } else if (type === 'large') {
-                addWall(-10, -10, 8, 1);
-                addWall(10, 10, 8, 1);
-                addWall(-10, 10, 1, 8);
-                addWall(10, -10, 1, 8);
-                addWall(0, -5, 5, 1);
-                addWall(0, 5, 5, 1);
-                addWall(-5, 0, 1, 5);
-                addWall(5, 0, 1, 5);
-                addWall(15, 0, 1, 6);
-                addWall(-15, 0, 1, 6);
-            } else {
-                addWall(3, 3, 2, 1);
-                addWall(-3, -3, 1, 2);
-            }
-        }
-
-        // ==================== СОЗДАНИЕ ПЕРСОНАЖА ====================
-        function createAstronaut(color = 0x44aaff, isImpostor = false) {
-            const group = new THREE.Group();
-
-            const bodyGeo = new THREE.CapsuleGeometry(0.7, 0.7, isMobile ? 2 : 4, isMobile ? 6 : 8);
-            const bodyMat = new THREE.MeshLambertMaterial({ color: color });
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
-            body.castShadow = !isMobile;
-            body.receiveShadow = !isMobile;
-            body.position.y = 0.8;
-            group.add(body);
-
-            const visorGeo = new THREE.SphereGeometry(0.4, isMobile ? 6 : 8, isMobile ? 6 : 8);
-            const visorMat = new THREE.MeshLambertMaterial({
-                color: 0x111122,
-                emissive: isImpostor ? 0x440000 : 0x112233
-            });
-            const visor = new THREE.Mesh(visorGeo, visorMat);
-            visor.castShadow = false;
-            visor.position.set(0, 1.1, 0.55);
-            visor.scale.set(0.9, 0.6, 0.4);
-            group.add(visor);
-
-            const backpackGeo = new THREE.BoxGeometry(0.6, 0.8, 0.4);
-            const backpackMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
-            const backpack = new THREE.Mesh(backpackGeo, backpackMat);
-            backpack.castShadow = !isMobile;
-            backpack.position.set(0, 0.9, -0.55);
-            group.add(backpack);
-
-            const legGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.4, 6);
-            const legMat = new THREE.MeshLambertMaterial({ color: color });
-            const legL = new THREE.Mesh(legGeo, legMat);
-            legL.position.set(-0.3, 0.3, 0);
-            group.add(legL);
-            const legR = new THREE.Mesh(legGeo, legMat);
-            legR.position.set(0.3, 0.3, 0);
-            group.add(legR);
-
-            if (isImpostor) {
-                const spikeGeo = new THREE.ConeGeometry(0.2, 0.5, 4);
-                const spikeMat = new THREE.MeshLambertMaterial({ color: 0xaa2222, emissive: 0x440000 });
-                const spikeL = new THREE.Mesh(spikeGeo, spikeMat);
-                spikeL.position.set(-0.35, 1.6, 0.1);
-                spikeL.rotation.x = 0.3;
-                group.add(spikeL);
-                const spikeR = new THREE.Mesh(spikeGeo, spikeMat);
-                spikeR.position.set(0.35, 1.6, 0.1);
-                spikeR.rotation.x = 0.3;
-                group.add(spikeR);
-            }
-
-            group.userData = { isImpostor, color };
-            return group;
-        }
-
-        // ==================== СЛУЧАЙНАЯ ТОЧКА СПАВНА ====================
-        function getRandomSpawnPoint(size) {
-            const half = size / 2 - 3;
-            return new THREE.Vector3(
-                (Math.random() - 0.5) * half * 1.4,
-                0,
-                (Math.random() - 0.5) * half * 1.4
-            );
-        }
-
-        // ==================== ОЧИСТКА ПЕРСОНАЖЕЙ ====================
-        function clearCharacters() {
-            allies.forEach(a => scene.remove(a));
-            allies = [];
-            if (impostorObj) { scene.remove(impostorObj); impostorObj = null; }
-            if (player.obj) { scene.remove(player.obj); player.obj = null; }
-        }
-
-        // ==================== ЗАПУСК ИГРЫ ====================
-        function startGame() {
-            try {
-                clearCharacters();
-                if (gameTimerInterval) clearInterval(gameTimerInterval);
-
-                const mapType = mapSelect.value;
-                const role = roleSelect.value;
-                let minutes = parseFloat(timeInput.value);
-                if (isNaN(minutes) || minutes < 1) minutes = 5;
-                if (minutes > 30) minutes = 30;
-
-                timeLeft = Math.floor(minutes * 60);
-                updateTimerDisplay();
-
-                let size = 30;
-                if (mapType === 'small') size = 20;
-                else if (mapType === 'large') size = 45;
-
-                createMap(mapType);
-
-                const playerIsImpostor = (role === 'impostor');
-                player.isImpostor = playerIsImpostor;
-                const playerColor = playerIsImpostor ? 0xaa2222 : 0x44aaff;
-
-                player.obj = createAstronaut(playerColor, playerIsImpostor);
-                player.obj.position.set(0, 0, 0);
-                scene.add(player.obj);
-
-                camera.position.set(0, 1.7, 0);
-                camera.rotation.set(0, 0, 0);
-                cameraYaw = 0;
-                cameraPitch = 0;
-
-                const allyCount = 4;
-                if (playerIsImpostor) {
-                    for (let i = 0; i < allyCount; i++) {
-                        const ally = createAstronaut(0x44aaff, false);
-                        let pos, attempts = 0;
-                        do {
-                            pos = getRandomSpawnPoint(size);
-                            attempts++;
-                        } while (pos.distanceTo(player.obj.position) < 6 && attempts < 20);
-                        ally.position.copy(pos);
-                        ally.userData = { isImpostor: false, alive: true, speed: 2.8 + Math.random() * 1.2 };
-                        scene.add(ally);
-                        allies.push(ally);
-                    }
-                } else {
-                    for (let i = 0; i < allyCount; i++) {
-                        const ally = createAstronaut(0x44aaff, false);
-                        let pos, attempts = 0;
-                        do {
-                            pos = getRandomSpawnPoint(size);
-                            attempts++;
-                        } while (pos.distanceTo(player.obj.position) < 5 && attempts < 20);
-                        ally.position.copy(pos);
-                        ally.userData = { isImpostor: false, alive: true, speed: 2.8 + Math.random() * 1.2 };
-                        scene.add(ally);
-                        allies.push(ally);
-                    }
-                    impostorObj = createAstronaut(0xaa2222, true);
-                    let impPos, attempts = 0;
-                    do {
-                        impPos = getRandomSpawnPoint(size);
-                        attempts++;
-                    } while (impPos.distanceTo(player.obj.position) < 12 && attempts < 30);
-                    impostorObj.position.copy(impPos);
-                    impostorObj.userData = { isImpostor: true, speed: 3.8 };
-                    scene.add(impostorObj);
-                }
-
-                updateAllyCount();
-
-                roleDisplay.textContent = playerIsImpostor ? 'ВЫ — ПРЕДАТЕЛЬ' : 'ВЫ — КОСМОНАВТ';
-                roleDisplay.style.color = playerIsImpostor ? '#ff5555' : '#aaffaa';
-                roleDisplay.classList.remove('hidden');
-                hudEl.classList.remove('hidden');
-                messageEl.style.display = 'none';
-
-                if (isTouchDevice) {
-                    touchControls.classList.add('active');
-                }
-
-                gameActive = true;
-                gameTimerInterval = setInterval(() => {
-                    if (!gameActive) return;
-                    timeLeft--;
-                    updateTimerDisplay();
-                    if (timeLeft <= 0) {
-                        if (!player.isImpostor) {
-                            endGame(true, 'ВЫ ВЫЖИЛИ! ПОБЕДА КОСМОНАВТОВ!');
-                        } else {
-                            endGame(false, 'ВРЕМЯ ВЫШЛО... ПРЕДАТЕЛЬ ПРОИГРАЛ.');
-                        }
-                    }
-                }, 1000);
-
-                menuEl.classList.add('hidden');
-                joystickActive = false;
-                moveVec.set(0, 0);
-
-            } catch (e) {
-                console.error('Ошибка запуска игры:', e);
-                alert('Ошибка при запуске игры: ' + e.message);
-            }
-        }
-
-        function updateTimerDisplay() {
-            const mins = Math.floor(timeLeft / 60);
-            const secs = Math.floor(timeLeft % 60);
-            timerSpan.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-        }
-
-        function updateAllyCount() {
-            const aliveCount = allies.filter(a => a.userData.alive !== false).length;
-            allyCountSpan.textContent = aliveCount;
-            return aliveCount;
-        }
-
-        // ==================== ЗАВЕРШЕНИЕ ИГРЫ ====================
-        function endGame(win, message) {
-            if (!gameActive) return;
-            gameActive = false;
-            if (gameTimerInterval) clearInterval(gameTimerInterval);
-
-            messageEl.textContent = message;
-            messageEl.style.display = 'block';
-            messageEl.style.borderColor = win ? '#00ffaa' : '#ff3333';
-            messageEl.style.color = win ? '#aaffaa' : '#ffaaaa';
-
-            setTimeout(() => {
-                menuEl.classList.remove('hidden');
-                messageEl.style.display = 'none';
-                touchControls.classList.remove('active');
-                hudEl.classList.add('hidden');
-                roleDisplay.classList.add('hidden');
-                clearCharacters();
-                gameActive = false;
-            }, 2500);
-        }
-
-        // ==================== УПРАВЛЕНИЕ: КЛАВИАТУРА ====================
-        const keys = {};
-        document.addEventListener('keydown', (e) => {
-            keys[e.code] = true;
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        document.addEventListener('keyup', (e) => {
-            keys[e.code] = false;
-        });
-
-        // ==================== УПРАВЛЕНИЕ: МЫШЬ ====================
-        let cameraYaw = 0, cameraPitch = 0;
-        const mouseSensitivity = 0.0022;
-        let isPointerLocked = false;
-
-        canvas.addEventListener('click', () => {
-            if (gameActive && !isTouchDevice && !isPointerLocked) {
-                canvas.requestPointerLock();
-            }
-        });
-
-        document.addEventListener('pointerlockchange', () => {
-            isPointerLocked = document.pointerLockElement === canvas;
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!gameActive || isTouchDevice) return;
-            if (isPointerLocked || document.pointerLockElement === canvas) {
-                cameraYaw -= e.movementX * mouseSensitivity;
-                cameraPitch -= e.movementY * mouseSensitivity;
-                cameraPitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, cameraPitch));
-            }
-        });
-
-        // ==================== УПРАВЛЕНИЕ: ТАЧ ====================
-        let joystickActive = false;
-        let joystickTouchId = null;
-        let joystickStart = { x: 0, y: 0 };
-        const moveVec = new THREE.Vector2();
-        const JOYSTICK_MAX_DIST = 50;
-
-        let lookTouchId = null;
-        let lookLast = { x: 0, y: 0 };
-        const touchLookSensitivity = 0.005;
-
-        joystickBase.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (joystickTouchId !== null) return;
-            const touch = e.changedTouches[0];
-            joystickTouchId = touch.identifier;
-            joystickActive = true;
-            const rect = joystickBase.getBoundingClientRect();
-            joystickStart.x = rect.left + rect.width / 2;
-            joystickStart.y = rect.top + rect.height / 2;
-            updateJoystick(touch.clientX, touch.clientY);
-        }, { passive: false });
-
-        document.addEventListener('touchmove', (e) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                if (touch.identifier === joystickTouchId) {
-                    e.preventDefault();
-                    updateJoystick(touch.clientX, touch.clientY);
-                }
-                if (touch.identifier === lookTouchId) {
-                    e.preventDefault();
-                    const dx = touch.clientX - lookLast.x;
-                    const dy = touch.clientY - lookLast.y;
-                    cameraYaw -= dx * touchLookSensitivity;
-                    cameraPitch -= dy * touchLookSensitivity;
-                    cameraPitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, cameraPitch));
-                    lookLast.x = touch.clientX;
-                    lookLast.y = touch.clientY;
-                }
-            }
-        }, { passive: false });
-
-        document.addEventListener('touchend', (e) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                if (touch.identifier === joystickTouchId) {
-                    joystickTouchId = null;
-                    joystickActive = false;
-                    moveVec.set(0, 0);
-                    resetJoystickKnob();
-                }
-                if (touch.identifier === lookTouchId) {
-                    lookTouchId = null;
-                }
-            }
-        }, { passive: false });
-
-        document.addEventListener('touchcancel', (e) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                if (touch.identifier === joystickTouchId) {
-                    joystickTouchId = null;
-                    joystickActive = false;
-                    moveVec.set(0, 0);
-                    resetJoystickKnob();
-                }
-                if (touch.identifier === lookTouchId) {
-                    lookTouchId = null;
-                }
-            }
-        }, { passive: false });
-
-        lookZone.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (lookTouchId !== null) return;
-            const touch = e.changedTouches[0];
-            lookTouchId = touch.identifier;
-            lookLast.x = touch.clientX;
-            lookLast.y = touch.clientY;
-        }, { passive: false });
-
-        function updateJoystick(clientX, clientY) {
-            let dx = clientX - joystickStart.x;
-            let dy = clientY - joystickStart.y;
-            const dist = Math.hypot(dx, dy);
-
-            if (dist > JOYSTICK_MAX_DIST) {
-                dx = (dx / dist) * JOYSTICK_MAX_DIST;
-                dy = (dy / dist) * JOYSTICK_MAX_DIST;
-            }
-
-            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-            moveVec.x = dx / JOYSTICK_MAX_DIST;
-            moveVec.y = dy / JOYSTICK_MAX_DIST;
-        }
-
-        function resetJoystickKnob() {
-            joystickKnob.style.transform = 'translate(-50%, -50%)';
-        }
-                // ==================== ОБНОВЛЕНИЕ ИГРЫ ====================
-        function updateGame(delta) {
-            if (!gameActive || !player.obj) return;
-
-            const speed = player.isImpostor ? 6.0 : 5.0;
-            const moveDir = new THREE.Vector3();
-
-            const forward = new THREE.Vector3(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
-            const right = new THREE.Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
-
-            if (keys['KeyW'] || keys['ArrowUp']) moveDir.add(forward);
-            if (keys['KeyS'] || keys['ArrowDown']) moveDir.sub(forward);
-            if (keys['KeyA'] || keys['ArrowLeft']) moveDir.sub(right);
-            if (keys['KeyD'] || keys['ArrowRight']) moveDir.add(right);
-
-            if (joystickActive && (Math.abs(moveVec.x) > 0.1 || Math.abs(moveVec.y) > 0.1)) {
-                moveDir.add(forward.clone().multiplyScalar(-moveVec.y));
-                moveDir.add(right.clone().multiplyScalar(moveVec.x));
-            }
-
-            if (moveDir.lengthSq() > 0) {
-                moveDir.normalize();
-                const newPos = player.obj.position.clone().add(moveDir.multiplyScalar(speed * delta));
-                const limit = mapSize / 2 - 1.5;
-                newPos.x = Math.max(-limit, Math.min(limit, newPos.x));
-                newPos.z = Math.max(-limit, Math.min(limit, newPos.z));
-                player.obj.position.copy(newPos);
-            }
-
-            camera.position.set(player.obj.position.x, player.obj.position.y + 1.7, player.obj.position.z);
-            camera.rotation.y = cameraYaw;
-            camera.rotation.x = cameraPitch;
-
-            // ===== ИИ =====
-            if (player.isImpostor) {
-                // Союзники убегают от игрока
-                allies.forEach(ally => {
-                    if (!ally.userData.alive) return;
-
-                    const distToPlayer = ally.position.distanceTo(player.obj.position);
-                    const dirAway = new THREE.Vector3().subVectors(ally.position, player.obj.position);
-                    dirAway.y = 0;
-
-                    if (dirAway.lengthSq() < 0.01) {
-                        dirAway.set(Math.random() - 0.5, 0, Math.random() - 0.5);
-                    }
-                    dirAway.normalize();
-
-                    let allySpeed = ally.userData.speed;
-                    if (distToPlayer < 10) {
-                        allySpeed *= 1.7;
-                        dirAway.x += (Math.random() - 0.5) * 0.6;
-                        dirAway.z += (Math.random() - 0.5) * 0.6;
-                        dirAway.normalize();
-                    }
-
-                    const newPos = ally.position.clone().add(dirAway.multiplyScalar(allySpeed * delta));
-                    const limit = mapSize / 2 - 1.5;
-                    newPos.x = Math.max(-limit, Math.min(limit, newPos.x));
-                    newPos.z = Math.max(-limit, Math.min(limit, newPos.z));
-                    ally.position.copy(newPos);
-
-                    if (distToPlayer < 1.8) {
-                        ally.userData.alive = false;
-                        scene.remove(ally);
-                        const left = updateAllyCount();
-                        if (left === 0) {
-                            endGame(true, 'ВЫ СЪЕЛИ ВСЕХ! ПОБЕДА ПРЕДАТЕЛЯ!');
-                        }
-                    }
-                });
-            } else {
-                // Предатель преследует ближайшую цель
-                if (impostorObj) {
-                    let target = null;
-                    let minDist = Infinity;
-
-                    allies.forEach(ally => {
-                        if (!ally.userData.alive) return;
-                        const d = impostorObj.position.distanceTo(ally.position);
-                        if (d < minDist) { minDist = d; target = ally; }
-                    });
-
-                    const dToPlayer = impostorObj.position.distanceTo(player.obj.position);
-                    if (dToPlayer < minDist) {
-                        minDist = dToPlayer;
-                        target = player.obj;
-                    }
-
-                    if (target) {
-                        const dir = new THREE.Vector3().subVectors(target.position, impostorObj.position);
-                        dir.y = 0;
-                        if (dir.lengthSq() > 0.001) {
-                            dir.normalize();
-                            const newPos = impostorObj.position.clone().add(dir.multiplyScalar(impostorObj.userData.speed * delta));
-                            impostorObj.position.copy(newPos);
-                        }
-
-                        if (target === player.obj && dToPlayer < 1.8) {
-                            endGame(false, 'ВАС СЪЕЛ ПРЕДАТЕЛЬ! ИГРА ОКОНЧЕНА.');
-                            return;
-                        }
-
-                        if (target !== player.obj && impostorObj.position.distanceTo(target.position) < 1.8) {
-                            target.userData.alive = false;
-                            scene.remove(target);
-                            const left = updateAllyCount();
-                            if (left === 0) {
-                                endGame(false, 'ПРЕДАТЕЛЬ СЪЕЛ ВСЕХ СОЮЗНИКОВ... ВЫ ПРОИГРАЛИ.');
-                            }
-                        }
-                    }
-                }
-            }
-
-            updateAllyCount();
-        }
-
-        // ==================== АНИМАЦИОННЫЙ ЦИКЛ ====================
-        function animate() {
-            requestAnimationFrame(animate);
-            const delta = Math.min(clock.getDelta(), 0.05);
-
-            if (gameActive) {
-                updateGame(delta);
-            }
-
-            renderer.render(scene, camera);
-        }
-
-        // ==================== РАЗМЕР ОКНА ====================
-        function onResize() {
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            camera.aspect = w / h;
-            camera.updateProjectionMatrix();
-
-            const pixelRatio = isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2);
-            renderer.setPixelRatio(pixelRatio);
-            renderer.setSize(w, h);
-        }
-
-        window.addEventListener('resize', onResize);
-        window.addEventListener('orientationchange', () => {
-            setTimeout(onResize, 200);
-        });
-
-        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
-        function init() {
-            initScene();
-            addLights();
-            createMap('medium');
-
-            const handlePlay = (e) => {
-                if (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-                startGame();
-            };
-
-            playBtn.addEventListener('click', handlePlay);
-            playBtn.addEventListener('touchend', handlePlay, { passive: false });
-
-            animate();
-        }
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
-        }
-    </script>
+</script>
 </body>
-</html>
+    </html>
