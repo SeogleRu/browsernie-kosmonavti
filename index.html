@@ -319,77 +319,81 @@
     </div>
 
     <script>
-    // ============================================================
-    // ЗАГРУЗЧИК THREE.JS С ПЕРЕБОРОМ ЗЕРКАЛ
-    // ============================================================
-    (async function loadThree() {
-        const mirrors = [
-            'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js',
-            'https://esm.sh/three@0.128.0',
-            'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js',
-            'https://unpkg.com/three@0.128.0/build/three.module.js',
-            'https://cdn.statically.io/gh/mrdoob/three.js/r128/build/three.module.js',
-            'https://raw.githack.com/mrdoob/three.js/r128/build/three.module.js',
-            'https://skypack.dev/three@0.128.0'
-        ];
+(async function loadThree() {
+    const mirrors = [
+        'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js',
+        'https://esm.sh/three@0.128.0',
+        'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js',
+        'https://unpkg.com/three@0.128.0/build/three.module.js',
+        'https://cdn.statically.io/gh/mrdoob/three.js/r128/build/three.module.js',
+        'https://raw.githack.com/mrdoob/three.js/r128/build/three.module.js',
+        'https://skypack.dev/three@0.128.0'
+    ];
 
-        const statusEl = document.getElementById('loadingStatus');
-        let threeCode = null;
+    const statusEl = document.getElementById('loadingStatus');
+    let threeCode = null;
 
-        for (let i = 0; i < mirrors.length; i++) {
-            const url = mirrors[i];
-            statusEl.textContent = `Попытка ${i + 1}/${mirrors.length}: ${new URL(url).hostname}`;
-            try {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 6000);
-                const resp = await fetch(url, { signal: controller.signal });
-                clearTimeout(timeout);
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                const text = await resp.text();
-                if (text.length < 50000) throw new Error('Файл слишком маленький (' + text.length + ' байт)');
-                threeCode = text;
-                console.log('✓ Three.js загружен с:', url, '| размер:', text.length);
-                break;
-            } catch (e) {
-                console.warn('✗ Не удалось с', url, ':', e.message);
-            }
+    for (let i = 0; i < mirrors.length; i++) {
+        const url = mirrors[i];
+        statusEl.textContent = `Попытка ${i + 1}/${mirrors.length}: ${new URL(url).hostname}`;
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 6000);
+            const resp = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeout);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const text = await resp.text();
+            if (text.length < 50000) throw new Error('Файл слишком маленький (' + text.length + ' байт)');
+            threeCode = text;
+            console.log('✓ Three.js загружен с:', url, '| размер:', text.length);
+            break;
+        } catch (e) {
+            console.warn('✗ Не удалось с', url, ':', e.message);
         }
+    }
 
-        if (!threeCode) {
-            statusEl.innerHTML = `
-                <div style="color:#ff8888;margin-top:20px;">
-                    <b>Не удалось загрузить Three.js</b><br><br>
-                    Все зеркала недоступны из вашей сети.<br>
-                    Включите VPN на 30 секунд и обновите страницу.<br>
-                    После загрузки VPN больше не понадобится — файл закэшируется.
-                </div>`;
-            return;
-        }
+    if (!threeCode) {
+        statusEl.innerHTML = `
+            <div style="color:#ff8888;margin-top:20px;">
+                <b>Не удалось загрузить Three.js</b><br><br>
+                Все зеркала недоступны из вашей сети.<br>
+                Включите VPN на 30 секунд и обновите страницу.
+            </div>`;
+        return;
+    }
 
-        // Создаём blob-URL и importmap
-        const blob = new Blob([threeCode], { type: 'application/javascript' });
-        const blobUrl = URL.createObjectURL(blob);
+    const blob = new Blob([threeCode], { type: 'application/javascript' });
+    const blobUrl = URL.createObjectURL(blob);
 
-        const importmap = document.createElement('script');
-        importmap.type = 'importmap';
-        importmap.textContent = JSON.stringify({
-            imports: { "three": blobUrl }
-        });
-        document.head.appendChild(importmap);
+    const importmap = document.createElement('script');
+    importmap.type = 'importmap';
+    importmap.textContent = JSON.stringify({ imports: { "three": blobUrl } });
+    document.head.appendChild(importmap);
 
-        // Запускаем код игры
-        statusEl.textContent = 'Запуск игры…';
-        const gameScript = document.createElement('script');
-        gameScript.type = 'module';
-        gameScript.textContent = document.getElementById('gameSource').textContent;
-        document.body.appendChild(gameScript);
+    statusEl.textContent = 'Запуск игры…';
 
-        // Скрываем экран загрузки и показываем меню
+    const gameScript = document.createElement('script');
+    gameScript.type = 'module';
+    gameScript.textContent = document.getElementById('gameSource').textContent;
+    // ВАЖНО: ждём загрузки модуля, потом показываем меню
+    gameScript.onload = () => {
         setTimeout(() => {
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('menu').classList.remove('hidden');
-        }, 300);
-    })();
+        }, 400);
+    };
+    // Для inline-скрипта onload не срабатывает, поэтому ставим таймер-страховку
+    document.body.appendChild(gameScript);
+
+    // Страховка: если через 2 секунды меню всё ещё не показано — покажем принудительно
+    setTimeout(() => {
+        const loading = document.getElementById('loadingScreen');
+        if (loading && loading.style.display !== 'none') {
+            loading.style.display = 'none';
+            document.getElementById('menu').classList.remove('hidden');
+        }
+    }, 2000);
+})();
     </script>
         <!-- ============================================================
          ИСХОДНЫЙ КОД ИГРЫ (хранится как текст, запустится после загрузки Three.js)
