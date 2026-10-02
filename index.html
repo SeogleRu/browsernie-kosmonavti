@@ -32,7 +32,6 @@
             top: 0;
             left: 0;
         }
-        /* ---------- МЕНЮ ---------- */
         #menu {
             position: absolute;
             top: 0;
@@ -118,7 +117,6 @@
             box-shadow: 0 0 40px #4faaff;
             transform: scale(1.02);
         }
-        /* ---------- HUD ---------- */
         #hud {
             position: absolute;
             top: max(10px, env(safe-area-inset-top));
@@ -170,7 +168,6 @@
         .hidden {
             display: none !important;
         }
-        /* ---------- КНОПКИ ТАЧ-УПРАВЛЕНИЯ ---------- */
         #touchControls {
             position: absolute;
             bottom: 0;
@@ -226,7 +223,40 @@
             pointer-events: auto;
             touch-action: none;
         }
-        /* Адаптация под ландшафт */
+        #loadingScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #03060b;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 200;
+            font-size: clamp(1rem, 4vw, 1.5rem);
+        }
+        #loadingScreen .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(120, 180, 255, 0.2);
+            border-top-color: #7abfff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        #loadingScreen .status {
+            color: #aad0ff;
+            font-size: 0.9rem;
+            margin-top: 15px;
+            text-align: center;
+            max-width: 80%;
+        }
         @media (orientation: landscape) and (max-height: 500px) {
             .joystick-zone {
                 width: 110px;
@@ -238,25 +268,18 @@
                 height: 48px;
             }
         }
-        /* Индикация мобильного */
-        .mobile-hint {
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: rgba(255,255,255,0.5);
-            font-size: 0.75rem;
-            z-index: 5;
-            pointer-events: none;
-            text-align: center;
-            white-space: nowrap;
-        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
 
-    <div id="menu">
+    <div id="loadingScreen">
+        <div class="spinner"></div>
+        <div>Загрузка Three.js…</div>
+        <div class="status" id="loadingStatus">Проверяю зеркала…</div>
+    </div>
+
+    <div id="menu" class="hidden">
         <h1>БРАУЗЕРНЫЕ КОСМОНАВТЫ</h1>
         <div class="menu-panel">
             <div class="menu-row">
@@ -282,11 +305,10 @@
         </div>
     </div>
 
-    <div id="hud">Время: <span id="timer">5:00</span> | Союзников: <span id="allyCount">4</span></div>
-    <div id="roleDisplay"></div>
+    <div id="hud" class="hidden">Время: <span id="timer">5:00</span> | Союзников: <span id="allyCount">4</span></div>
+    <div id="roleDisplay" class="hidden"></div>
     <div id="message"></div>
 
-    <!-- Тач-управление -->
     <div id="touchControls">
         <div class="joystick-zone" id="joystickLeft">
             <div id="joystickBase">
@@ -296,19 +318,85 @@
         <div id="lookZone"></div>
     </div>
 
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js"
+    <script>
+    // ============================================================
+    // ЗАГРУЗЧИК THREE.JS С ПЕРЕБОРОМ ЗЕРКАЛ
+    // ============================================================
+    (async function loadThree() {
+        const mirrors = [
+            'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js',
+            'https://esm.sh/three@0.128.0',
+            'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js',
+            'https://unpkg.com/three@0.128.0/build/three.module.js',
+            'https://cdn.statically.io/gh/mrdoob/three.js/r128/build/three.module.js',
+            'https://raw.githack.com/mrdoob/three.js/r128/build/three.module.js',
+            'https://skypack.dev/three@0.128.0'
+        ];
+
+        const statusEl = document.getElementById('loadingStatus');
+        let threeCode = null;
+
+        for (let i = 0; i < mirrors.length; i++) {
+            const url = mirrors[i];
+            statusEl.textContent = `Попытка ${i + 1}/${mirrors.length}: ${new URL(url).hostname}`;
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 6000);
+                const resp = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeout);
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const text = await resp.text();
+                if (text.length < 50000) throw new Error('Файл слишком маленький (' + text.length + ' байт)');
+                threeCode = text;
+                console.log('✓ Three.js загружен с:', url, '| размер:', text.length);
+                break;
+            } catch (e) {
+                console.warn('✗ Не удалось с', url, ':', e.message);
+            }
         }
-    }
+
+        if (!threeCode) {
+            statusEl.innerHTML = `
+                <div style="color:#ff8888;margin-top:20px;">
+                    <b>Не удалось загрузить Three.js</b><br><br>
+                    Все зеркала недоступны из вашей сети.<br>
+                    Включите VPN на 30 секунд и обновите страницу.<br>
+                    После загрузки VPN больше не понадобится — файл закэшируется.
+                </div>`;
+            return;
+        }
+
+        // Создаём blob-URL и importmap
+        const blob = new Blob([threeCode], { type: 'application/javascript' });
+        const blobUrl = URL.createObjectURL(blob);
+
+        const importmap = document.createElement('script');
+        importmap.type = 'importmap';
+        importmap.textContent = JSON.stringify({
+            imports: { "three": blobUrl }
+        });
+        document.head.appendChild(importmap);
+
+        // Запускаем код игры
+        statusEl.textContent = 'Запуск игры…';
+        const gameScript = document.createElement('script');
+        gameScript.type = 'module';
+        gameScript.textContent = document.getElementById('gameSource').textContent;
+        document.body.appendChild(gameScript);
+
+        // Скрываем экран загрузки и показываем меню
+        setTimeout(() => {
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('menu').classList.remove('hidden');
+        }, 300);
+    })();
     </script>
-
-    <script type="module">
-        import * as THREE from 'three';
-
+        <!-- ============================================================
+         ИСХОДНЫЙ КОД ИГРЫ (хранится как текст, запустится после загрузки Three.js)
+         ============================================================ -->
+    <script type="text/plain" id="gameSource">
         // ==================== ОПРЕДЕЛЕНИЕ МОБИЛЬНОГО УСТРОЙСТВА ====================
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
                         || ('ontouchstart' in window && navigator.maxTouchPoints > 1);
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
@@ -333,6 +421,7 @@
         const allyCountSpan = document.getElementById('allyCount');
         const roleDisplay = document.getElementById('roleDisplay');
         const messageEl = document.getElementById('message');
+        const hudEl = document.getElementById('hud');
         const touchControls = document.getElementById('touchControls');
         const joystickBase = document.getElementById('joystickBase');
         const joystickKnob = document.getElementById('joystickKnob');
@@ -349,30 +438,29 @@
             camera.position.set(0, 1.7, 0);
             camera.rotation.order = 'YXZ';
 
-            // Оптимизация рендерера для мобильных
-            renderer = new THREE.WebGLRenderer({ 
+            renderer = new THREE.WebGLRenderer({
                 canvas: canvas,
-                antialias: !isMobile, // отключаем сглаживание на мобильных для производительности
+                antialias: !isMobile,
                 powerPreference: 'high-performance',
                 alpha: false,
                 stencil: false,
                 depth: true
             });
-            
-            // Ограничиваем pixel ratio для мобильных (максимум 1.5)
+
             const pixelRatio = isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2);
             renderer.setPixelRatio(pixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
-            
-            // Тени только на десктопе (на мобильных сильно нагружают)
+
             if (!isMobile) {
                 renderer.shadowMap.enabled = true;
                 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             } else {
                 renderer.shadowMap.enabled = false;
             }
-            
-            renderer.outputEncoding = THREE.sRGBEncoding;
+
+            if (renderer.outputEncoding !== undefined) {
+                renderer.outputEncoding = THREE.sRGBEncoding;
+            }
         }
 
         // ==================== ОСВЕЩЕНИЕ ====================
@@ -402,11 +490,9 @@
 
         // ==================== СОЗДАНИЕ КАРТЫ ====================
         function createMap(type) {
-            // Удаляем старую карту
             const oldGround = scene.getObjectByName('ground');
             if (oldGround) scene.remove(oldGround);
-            
-            // Удаляем все стены
+
             const wallsToRemove = [];
             scene.traverse(obj => {
                 if (obj.name === 'wall') wallsToRemove.push(obj);
@@ -423,7 +509,6 @@
 
             mapSize = Math.min(sizeX, sizeZ);
 
-            // Пол
             const groundGeo = new THREE.BoxGeometry(sizeX, 0.5, sizeZ);
             const groundMat = new THREE.MeshLambertMaterial({ color: 0x2a2a4a });
             const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -432,7 +517,6 @@
             ground.receiveShadow = !isMobile;
             scene.add(ground);
 
-            // Стены
             const wallMat = new THREE.MeshLambertMaterial({ color: 0x4a6a9a });
 
             function addWall(x, z, w, d) {
@@ -478,7 +562,6 @@
         function createAstronaut(color = 0x44aaff, isImpostor = false) {
             const group = new THREE.Group();
 
-            // Тело — используем упрощённую геометрию для мобильных
             const bodyGeo = new THREE.CapsuleGeometry(0.7, 0.7, isMobile ? 2 : 4, isMobile ? 6 : 8);
             const bodyMat = new THREE.MeshLambertMaterial({ color: color });
             const body = new THREE.Mesh(bodyGeo, bodyMat);
@@ -487,10 +570,9 @@
             body.position.y = 0.8;
             group.add(body);
 
-            // Визор
             const visorGeo = new THREE.SphereGeometry(0.4, isMobile ? 6 : 8, isMobile ? 6 : 8);
-            const visorMat = new THREE.MeshLambertMaterial({ 
-                color: 0x111122, 
+            const visorMat = new THREE.MeshLambertMaterial({
+                color: 0x111122,
                 emissive: isImpostor ? 0x440000 : 0x112233
             });
             const visor = new THREE.Mesh(visorGeo, visorMat);
@@ -499,7 +581,6 @@
             visor.scale.set(0.9, 0.6, 0.4);
             group.add(visor);
 
-            // Рюкзак
             const backpackGeo = new THREE.BoxGeometry(0.6, 0.8, 0.4);
             const backpackMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
             const backpack = new THREE.Mesh(backpackGeo, backpackMat);
@@ -507,7 +588,6 @@
             backpack.position.set(0, 0.9, -0.55);
             group.add(backpack);
 
-            // Ноги
             const legGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.4, 6);
             const legMat = new THREE.MeshLambertMaterial({ color: color });
             const legL = new THREE.Mesh(legGeo, legMat);
@@ -517,7 +597,6 @@
             legR.position.set(0.3, 0.3, 0);
             group.add(legR);
 
-            // Если предатель — рожки
             if (isImpostor) {
                 const spikeGeo = new THREE.ConeGeometry(0.2, 0.5, 4);
                 const spikeMat = new THREE.MeshLambertMaterial({ color: 0xaa2222, emissive: 0x440000 });
@@ -556,7 +635,6 @@
         // ==================== ЗАПУСК ИГРЫ ====================
         function startGame() {
             try {
-                // Сброс
                 clearCharacters();
                 if (gameTimerInterval) clearInterval(gameTimerInterval);
 
@@ -569,36 +647,30 @@
                 timeLeft = Math.floor(minutes * 60);
                 updateTimerDisplay();
 
-                // Карта
                 let size = 30;
                 if (mapType === 'small') size = 20;
                 else if (mapType === 'large') size = 45;
 
                 createMap(mapType);
 
-                // Игрок
                 const playerIsImpostor = (role === 'impostor');
                 player.isImpostor = playerIsImpostor;
                 const playerColor = playerIsImpostor ? 0xaa2222 : 0x44aaff;
-                
+
                 player.obj = createAstronaut(playerColor, playerIsImpostor);
                 player.obj.position.set(0, 0, 0);
                 scene.add(player.obj);
 
-                // Сброс камеры
                 camera.position.set(0, 1.7, 0);
                 camera.rotation.set(0, 0, 0);
                 cameraYaw = 0;
                 cameraPitch = 0;
 
-                // Союзники
                 const allyCount = 4;
                 if (playerIsImpostor) {
-                    // Игрок — предатель, союзники — цели
                     for (let i = 0; i < allyCount; i++) {
                         const ally = createAstronaut(0x44aaff, false);
-                        let pos;
-                        let attempts = 0;
+                        let pos, attempts = 0;
                         do {
                             pos = getRandomSpawnPoint(size);
                             attempts++;
@@ -609,11 +681,9 @@
                         allies.push(ally);
                     }
                 } else {
-                    // Игрок — космонавт, союзники + предатель
                     for (let i = 0; i < allyCount; i++) {
                         const ally = createAstronaut(0x44aaff, false);
-                        let pos;
-                        let attempts = 0;
+                        let pos, attempts = 0;
                         do {
                             pos = getRandomSpawnPoint(size);
                             attempts++;
@@ -623,10 +693,8 @@
                         scene.add(ally);
                         allies.push(ally);
                     }
-                    // Предатель
                     impostorObj = createAstronaut(0xaa2222, true);
-                    let impPos;
-                    let attempts = 0;
+                    let impPos, attempts = 0;
                     do {
                         impPos = getRandomSpawnPoint(size);
                         attempts++;
@@ -640,14 +708,14 @@
 
                 roleDisplay.textContent = playerIsImpostor ? 'ВЫ — ПРЕДАТЕЛЬ' : 'ВЫ — КОСМОНАВТ';
                 roleDisplay.style.color = playerIsImpostor ? '#ff5555' : '#aaffaa';
+                roleDisplay.classList.remove('hidden');
+                hudEl.classList.remove('hidden');
                 messageEl.style.display = 'none';
 
-                // Показать тач-управление на мобильных
                 if (isTouchDevice) {
                     touchControls.classList.add('active');
                 }
 
-                // Запуск таймера
                 gameActive = true;
                 gameTimerInterval = setInterval(() => {
                     if (!gameActive) return;
@@ -662,10 +730,7 @@
                     }
                 }, 1000);
 
-                // Скрываем меню
                 menuEl.classList.add('hidden');
-                
-                // Сброс джойстика
                 joystickActive = false;
                 moveVec.set(0, 0);
 
@@ -702,6 +767,8 @@
                 menuEl.classList.remove('hidden');
                 messageEl.style.display = 'none';
                 touchControls.classList.remove('active');
+                hudEl.classList.add('hidden');
+                roleDisplay.classList.add('hidden');
                 clearCharacters();
                 gameActive = false;
             }, 2500);
@@ -715,12 +782,12 @@
                 e.preventDefault();
             }
         }, { passive: false });
-        
+
         document.addEventListener('keyup', (e) => {
             keys[e.code] = false;
         });
 
-        // ==================== УПРАВЛЕНИЕ: МЫШЬ (DESKTOP) ====================
+        // ==================== УПРАВЛЕНИЕ: МЫШЬ ====================
         let cameraYaw = 0, cameraPitch = 0;
         const mouseSensitivity = 0.0022;
         let isPointerLocked = false;
@@ -744,7 +811,7 @@
             }
         });
 
-        // ==================== УПРАВЛЕНИЕ: ТАЧ (MOBILE) ====================
+        // ==================== УПРАВЛЕНИЕ: ТАЧ ====================
         let joystickActive = false;
         let joystickTouchId = null;
         let joystickStart = { x: 0, y: 0 };
@@ -755,7 +822,6 @@
         let lookLast = { x: 0, y: 0 };
         const touchLookSensitivity = 0.005;
 
-        // Джойстик
         joystickBase.addEventListener('touchstart', (e) => {
             e.preventDefault();
             if (joystickTouchId !== null) return;
@@ -771,14 +837,10 @@
         document.addEventListener('touchmove', (e) => {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
-                
-                // Джойстик
                 if (touch.identifier === joystickTouchId) {
                     e.preventDefault();
                     updateJoystick(touch.clientX, touch.clientY);
                 }
-                
-                // Обзор
                 if (touch.identifier === lookTouchId) {
                     e.preventDefault();
                     const dx = touch.clientX - lookLast.x;
@@ -822,7 +884,6 @@
             }
         }, { passive: false });
 
-        // Зона обзора
         lookZone.addEventListener('touchstart', (e) => {
             e.preventDefault();
             if (lookTouchId !== null) return;
@@ -836,16 +897,13 @@
             let dx = clientX - joystickStart.x;
             let dy = clientY - joystickStart.y;
             const dist = Math.hypot(dx, dy);
-            
+
             if (dist > JOYSTICK_MAX_DIST) {
                 dx = (dx / dist) * JOYSTICK_MAX_DIST;
                 dy = (dy / dist) * JOYSTICK_MAX_DIST;
             }
-            
-            // Визуальное положение кноба
+
             joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-            
-            // Нормализованные значения (-1..1)
             moveVec.x = dx / JOYSTICK_MAX_DIST;
             moveVec.y = dy / JOYSTICK_MAX_DIST;
         }
@@ -853,28 +911,22 @@
         function resetJoystickKnob() {
             joystickKnob.style.transform = 'translate(-50%, -50%)';
         }
-
-        // ==================== ОБНОВЛЕНИЕ ИГРЫ ====================
+                // ==================== ОБНОВЛЕНИЕ ИГРЫ ====================
         function updateGame(delta) {
             if (!gameActive || !player.obj) return;
 
             const speed = player.isImpostor ? 6.0 : 5.0;
             const moveDir = new THREE.Vector3();
 
-            // Направления камеры (без наклона)
             const forward = new THREE.Vector3(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
             const right = new THREE.Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
 
-            // Ввод: клавиатура
             if (keys['KeyW'] || keys['ArrowUp']) moveDir.add(forward);
             if (keys['KeyS'] || keys['ArrowDown']) moveDir.sub(forward);
             if (keys['KeyA'] || keys['ArrowLeft']) moveDir.sub(right);
             if (keys['KeyD'] || keys['ArrowRight']) moveDir.add(right);
 
-            // Ввод: джойстик (мобильный)
             if (joystickActive && (Math.abs(moveVec.x) > 0.1 || Math.abs(moveVec.y) > 0.1)) {
-                // moveVec.y: вверх = -1, вниз = +1
-                // Для движения: вверх джойстика = вперёд
                 moveDir.add(forward.clone().multiplyScalar(-moveVec.y));
                 moveDir.add(right.clone().multiplyScalar(moveVec.x));
             }
@@ -882,14 +934,12 @@
             if (moveDir.lengthSq() > 0) {
                 moveDir.normalize();
                 const newPos = player.obj.position.clone().add(moveDir.multiplyScalar(speed * delta));
-                // Ограничение по границам
                 const limit = mapSize / 2 - 1.5;
                 newPos.x = Math.max(-limit, Math.min(limit, newPos.x));
                 newPos.z = Math.max(-limit, Math.min(limit, newPos.z));
                 player.obj.position.copy(newPos);
             }
 
-            // Камера от первого лица
             camera.position.set(player.obj.position.x, player.obj.position.y + 1.7, player.obj.position.z);
             camera.rotation.y = cameraYaw;
             camera.rotation.x = cameraPitch;
@@ -899,32 +949,30 @@
                 // Союзники убегают от игрока
                 allies.forEach(ally => {
                     if (!ally.userData.alive) return;
-                    
+
                     const distToPlayer = ally.position.distanceTo(player.obj.position);
                     const dirAway = new THREE.Vector3().subVectors(ally.position, player.obj.position);
                     dirAway.y = 0;
-                    
+
                     if (dirAway.lengthSq() < 0.01) {
                         dirAway.set(Math.random() - 0.5, 0, Math.random() - 0.5);
                     }
                     dirAway.normalize();
-                    
+
                     let allySpeed = ally.userData.speed;
                     if (distToPlayer < 10) {
                         allySpeed *= 1.7;
-                        // Паника — небольшое случайное отклонение
                         dirAway.x += (Math.random() - 0.5) * 0.6;
                         dirAway.z += (Math.random() - 0.5) * 0.6;
                         dirAway.normalize();
                     }
-                    
+
                     const newPos = ally.position.clone().add(dirAway.multiplyScalar(allySpeed * delta));
                     const limit = mapSize / 2 - 1.5;
                     newPos.x = Math.max(-limit, Math.min(limit, newPos.x));
                     newPos.z = Math.max(-limit, Math.min(limit, newPos.z));
                     ally.position.copy(newPos);
-                    
-                    // Поимка союзника
+
                     if (distToPlayer < 1.8) {
                         ally.userData.alive = false;
                         scene.remove(ally);
@@ -935,23 +983,23 @@
                     }
                 });
             } else {
-                // Предатель преследует
+                // Предатель преследует ближайшую цель
                 if (impostorObj) {
                     let target = null;
                     let minDist = Infinity;
-                    
+
                     allies.forEach(ally => {
                         if (!ally.userData.alive) return;
                         const d = impostorObj.position.distanceTo(ally.position);
                         if (d < minDist) { minDist = d; target = ally; }
                     });
-                    
+
                     const dToPlayer = impostorObj.position.distanceTo(player.obj.position);
                     if (dToPlayer < minDist) {
                         minDist = dToPlayer;
                         target = player.obj;
                     }
-                    
+
                     if (target) {
                         const dir = new THREE.Vector3().subVectors(target.position, impostorObj.position);
                         dir.y = 0;
@@ -960,14 +1008,12 @@
                             const newPos = impostorObj.position.clone().add(dir.multiplyScalar(impostorObj.userData.speed * delta));
                             impostorObj.position.copy(newPos);
                         }
-                        
-                        // Поимка игрока
+
                         if (target === player.obj && dToPlayer < 1.8) {
                             endGame(false, 'ВАС СЪЕЛ ПРЕДАТЕЛЬ! ИГРА ОКОНЧЕНА.');
                             return;
                         }
-                        
-                        // Поимка союзника
+
                         if (target !== player.obj && impostorObj.position.distanceTo(target.position) < 1.8) {
                             target.userData.alive = false;
                             scene.remove(target);
@@ -986,12 +1032,12 @@
         // ==================== АНИМАЦИОННЫЙ ЦИКЛ ====================
         function animate() {
             requestAnimationFrame(animate);
-            const delta = Math.min(clock.getDelta(), 0.05); // ограничение delta для стабильности
-            
+            const delta = Math.min(clock.getDelta(), 0.05);
+
             if (gameActive) {
                 updateGame(delta);
             }
-            
+
             renderer.render(scene, camera);
         }
 
@@ -1001,7 +1047,7 @@
             const h = window.innerHeight;
             camera.aspect = w / h;
             camera.updateProjectionMatrix();
-            
+
             const pixelRatio = isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2);
             renderer.setPixelRatio(pixelRatio);
             renderer.setSize(w, h);
@@ -1018,25 +1064,20 @@
             addLights();
             createMap('medium');
 
-            // Обработчик кнопки "Играть" — исправлено: используется addEventListener с 'click' и 'touchend'
             const handlePlay = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
                 startGame();
             };
-            
-            playBtn.addEventListener('click', handlePlay);
-            // Дополнительно для мобильных, чтобы кнопка срабатывала моментально
-            playBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                handlePlay(e);
-            }, { passive: false });
 
-            // Запуск
+            playBtn.addEventListener('click', handlePlay);
+            playBtn.addEventListener('touchend', handlePlay, { passive: false });
+
             animate();
         }
 
-        // Запуск после загрузки страницы
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
         } else {
@@ -1044,4 +1085,4 @@
         }
     </script>
 </body>
-    </html>
+</html>
